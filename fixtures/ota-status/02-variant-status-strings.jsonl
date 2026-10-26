@@ -1,0 +1,10 @@
+{"campaign_id":"OTA-00000000","event_id":"3b4fbbdf-ea8d-44e7-934c-be9188fff999","event_ts":1792972800000,"progress_pct":-5.0,"schema_version":"1","status":"downloading","vehicle_id":"VH-798c04b1"}
+{"campaign_id":"OTA-00000001","event_id":"bc8d22cf-bd0b-4ff8-843a-501d8e53d353","event_ts":1792972860000,"progress_pct":105.0,"schema_version":"1","status":"DL","vehicle_id":"VH-d3a5ce81"}
+{"campaign_id":"OTA-00000000","event_id":"d27bc5cb-2906-441f-99b1-0e1da0a5d0a2","event_ts":1792972920000,"progress_pct":50.0,"schema_version":"1","status":"download","vehicle_id":"VH-c4c7bf99"}
+{"campaign_id":"OTA-00000001","event_id":"11dc818c-4a16-40ab-a5a1-dcfe8ff4d8a1","event_ts":1792972980000,"progress_pct":-5.0,"schema_version":"1","status":"installing","vehicle_id":"VH-6699d8c0"}
+{"campaign_id":"OTA-00000000","event_id":"375b9377-dd0e-44f6-9506-14e8d1240eca","event_ts":1792973040000,"progress_pct":105.0,"schema_version":"1","status":"Inst","vehicle_id":"VH-798c04b1"}
+{"campaign_id":"OTA-00000001","event_id":"939fab51-60b4-43fa-a06c-1c288f573e82","event_ts":1792973100000,"progress_pct":50.0,"schema_version":"1","status":"done","vehicle_id":"VH-d3a5ce81"}
+{"campaign_id":"OTA-00000000","event_id":"bc467fb0-4b11-4e15-93c1-838d301e49f7","event_ts":1792973160000,"progress_pct":-5.0,"schema_version":"1","status":"COMPLETE","vehicle_id":"VH-c4c7bf99"}
+{"campaign_id":"OTA-00000001","event_id":"abab31a6-d180-4490-afbb-743a32ff55b4","event_ts":1792973220000,"progress_pct":105.0,"schema_version":"1","status":"success","vehicle_id":"VH-6699d8c0"}
+{"campaign_id":"OTA-00000000","event_id":"d53d61f7-59cb-4cff-841e-c0dad5eebfa3","event_ts":1792973280000,"progress_pct":50.0,"schema_version":"1","status":"failed","vehicle_id":"VH-798c04b1"}
+{"campaign_id":"OTA-00000001","event_id":"0518802c-e32e-449d-9b1b-a104848b1dfa","event_ts":1792973340000,"progress_pct":-5.0,"schema_version":"1","status":"Error","vehicle_id":"VH-d3a5ce81"}

@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+.DS_Store
+
+# Scala and Spark
+target/
+.bsp/
+.metals/
+.sparkStaging/
+spark-warehouse/
+metastore_db/
+
+# Rust
+/processors/target/
+
+# Generated review artefacts
+evidence/*
+!evidence/ota-status/
