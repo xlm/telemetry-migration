@@ -67,7 +67,7 @@ Say: "Nobody rewrote the policy to make this pass, and the Evidence Pack tells a
 Screen 1. Three outcomes:
 
 - **Finished**: show the PR diff (only Rust files touched), read Devin's root-cause explanation of both Drifts, run `make gate` on its branch locally. Green. Best ending.
-- **Mid-flight**: show where it is (usually it has found the dedup key by now). Say "I ran this exact prompt yesterday" and switch to screen 4 for the ending. Come back to screen 1 at the end of Q&A if it has finished.
+- **Mid-flight**: show where it is (usually it has found the dedup key by now; the Vehicle Clock takes longer because the port's wall-clock version looks reasonable until you read the Scala). Say "I ran this exact prompt yesterday" and switch to screen 4 for the ending. Come back to screen 1 at the end of Q&A if it has finished.
 - **Stuck or wrong**: say so plainly, switch to screen 4. Do not rescue it live.
 
 Whichever happens, screen 6 for ten seconds: the read-only section of `AGENTS.md`. "This is injected into every session on this repo. It is why the diff only touches Rust, and the Gate checks the same list mechanically."
@@ -94,7 +94,8 @@ failure, and fix it in the Rust processor under processors/charging-session/.
 
 Constraints:
 - Do not modify anything under harness/, fixtures/, goldens/, manifests/,
-  contracts/ or jobs/. If you believe one of those is wrong, stop and say so.
+  contracts/, jobs/ or downstream/. If you believe one of those is wrong,
+  stop and say so.
 - The Scala job in jobs/charging-session/ is the source of truth for
   behaviour. Read it before changing the Rust.
 
@@ -160,8 +161,8 @@ Does not prove:
 - [ ] `make doctor` prints `doctor: ok` on this laptop.
 - [ ] `git fetch`, every demo branch at its recorded SHA (see `docs/build-plan.md`, "Demo states").
 - [ ] `make gate PROCESSOR=ota-status` green on `main`.
-- [ ] `make gate PROCESSOR=charging-session` red on `drift/dedup-and-idle` with exactly two Drift findings.
-- [ ] `make gate PROCESSOR=charging-session` red on `violation/location-in-summary` with exactly one privacy finding.
+- [ ] `make gate PROCESSOR=charging-session` red on `drift/dedup-and-idle` on fixtures 04 and 09 only, every other step green.
+- [ ] `make gate PROCESSOR=charging-session` red on `violation/location-in-summary` on contract and privacy, both naming `end_location`.
 - [ ] Pre-run PR still open, Devin Review findings visible.
 - [ ] Backup live-prompt session (screen 4) opens and scrolls.
 - [ ] No stray `devin/*` branches or PRs from rehearsals.

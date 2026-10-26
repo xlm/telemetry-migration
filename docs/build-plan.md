@@ -9,7 +9,8 @@ Decisions already made (do not reopen during the build): see the "Shared underst
 ```
 telemetry-migration/
 ├── CONTEXT.md                      # glossary (copy from this planning repo)
-├── Makefile                        # gate, goldens, fixtures, fmt, test
+├── Makefile                        # setup, doctor, gate, goldens, fixtures, test, fmt, lint
+├── .gitignore                      # evidence/ except evidence/ota-status/
 ├── README.md
 ├── docs/
 │   ├── architecture.md             # one diagram: Job | Processor | Gate | Evidence Pack
@@ -90,7 +91,8 @@ telemetry-migration/
 
 The presenter is not a Scala, Rust or Spark developer and will run the terminal fallback on a MacBook. `README.md` must therefore let someone with only Homebrew installed get to a green `make gate PROCESSOR=ota-status` by following it top to bottom. Rules, enforced through every session prompt and later through `AGENTS.md`:
 
-- `README.md` has a section `## Local setup (macOS)` listing every tool with the exact `brew install` (or `rustup`, `uv`) command and the version that was tested, followed by `make setup` and `make doctor`.
+- `README.md` has a section `## Local setup (macOS)` listing every tool with the exact `brew install` (or `rustup`, `uv`) command and the version to install, followed by `make setup` and `make doctor`.
+- Devin sessions run on Linux and cannot execute the macOS path. `make setup` and `make doctor` therefore branch on OS so the logic is testable on Linux, and the macOS branch is verified by a human at the end of Phase 1.
 - `make setup` installs or upgrades everything it can through Homebrew, rustup and uv, and prints a clear instruction for anything it cannot. It must be safe to re-run.
 - `make doctor` checks every tool is present at a compatible version, that `JAVA_HOME` resolves to JDK 17, and that `cargo build`, `sbt compile` and `uv sync` have all succeeded at least once. Green output ends with a single line `doctor: ok`.
 - A `## Running` section with the five commands a presenter needs: `make test`, `make goldens JOB=`, `make gate PROCESSOR=`, how to read a red Gate, how to find the Evidence Pack.
@@ -107,9 +109,9 @@ These rules define the Goldens. The Scala build session implements them exactly.
 |---|---|---|
 | `event_id` | string (uuid) | unique per emission, but a vehicle may re-send the same `seq` with a new `event_id` |
 | `vehicle_id` | string | synthetic, `VH-` plus 8 hex |
-| `session_id` | string | synthetic, `CS-` plus 8 hex |
-| `event_ts` | int, epoch ms | event time |
-| `ingest_ts` | int, epoch ms | ignored by business logic |
+| `session_id` | string or null | synthetic, `CS-` plus 8 hex. Null only on `HEARTBEAT` |
+| `event_ts` | int, epoch ms | event time, set by the vehicle |
+| `ingest_ts` | int, epoch ms | arrival time at the platform. Defines processing order and dedup tie-break, nothing else |
 | `seq` | int | per-vehicle, monotonically increasing on the vehicle side |
 | `charging_state` | enum | `PLUGGED_IN`, `CHARGING`, `PAUSED`, `COMPLETE`, `UNPLUGGED`, `HEARTBEAT` |
 | `soc_pct` | float or null | 0..100 |
@@ -119,14 +121,18 @@ These rules define the Goldens. The Scala build session implements them exactly.
 
 ### Charging-session Job rules
 
-1. **Validation.** Missing `event_id`, `vehicle_id`, `session_id`, `event_ts` or `charging_state`, unknown `charging_state`, `soc_pct` outside 0..100, or `power_kw` < 0 goes to DLQ (topic `vehicle.charging.dlq`) with `{event_id, vehicle_id, reason}`. Reasons: `MISSING_FIELD`, `UNKNOWN_STATE`, `SOC_OUT_OF_RANGE`, `NEGATIVE_POWER`, `DUPLICATE`, `LATE`. Null `power_kw` is valid and treated as 0 for integration.
-2. **Heartbeat.** `HEARTBEAT` events carry no `session_id` (null is allowed for this state only), do not touch session state, and exist only to advance event time. Never emitted anywhere, never DLQ'd.
-3. **Dedup.** Key is `(vehicle_id, seq)`. First seen wins. A later event with the same key and a different `event_id` or payload goes to DLQ with reason `DUPLICATE`. (Planted Drift #1: an obvious port keys on `event_id`.)
-4. **Session state.** Keyed by `session_id`. Holds the list of accepted events. Events may arrive out of order within an open session.
-5. **Close.** A session closes on `COMPLETE` or `UNPLUGGED`, or when event time (watermark) passes `last_event_ts + 30 minutes`. Close reason is `COMPLETE`, `UNPLUGGED` or `TIMEOUT`. (Planted Drift #2: an obvious port uses processing time for the idle timeout and stamps `end_ts` with wall-clock time.)
-6. **Late.** An accepted-looking event for an already closed session goes to DLQ with reason `LATE`.
-7. **Energy.** At close, sort accepted events by `event_ts`. For each consecutive pair `(i, i+1)` where `charging_state[i] == CHARGING`, add `0.5 * (power_kw[i] + power_kw[i+1]) * (event_ts[i+1] - event_ts[i]) / 3_600_000` kWh. Round the total to 3 decimal places, half-even.
-8. **Summary** (output, topic `vehicle.charging.sessions`, keyed by `session_id`, emitted exactly once per session at close):
+The Job does not use Spark's watermark or any wall clock. All time decisions use the **Vehicle Clock**: the highest `event_ts` seen so far for that vehicle, heartbeats included. This is what makes Goldens deterministic and lets a per-event Rust core produce identical output. It is also the kind of thing a port gets wrong if it reads the field names instead of the code.
+
+1. **Validation**, before any state is touched. Missing `event_id`, `vehicle_id`, `event_ts` or `charging_state`, unknown `charging_state`, `soc_pct` outside 0..100, or `power_kw` < 0 goes to DLQ (topic `vehicle.charging.dlq`) with `{event_id, vehicle_id, reason}` (either may be null if missing). Missing `session_id` is `MISSING_FIELD` unless `charging_state` is `HEARTBEAT`. Reasons: `MISSING_FIELD`, `UNKNOWN_STATE`, `SOC_OUT_OF_RANGE`, `NEGATIVE_POWER`, `DUPLICATE`, `LATE`. Null `power_kw` is valid and treated as 0 for integration. Invalid events never advance the Vehicle Clock.
+2. **Processing order.** State is keyed by `vehicle_id`. Within a vehicle, valid events are processed in `(ingest_ts, event_id)` order. The Scala state function sorts its group iterator by that key; the Rust core receives events in file order, and fixture files are written in that order.
+3. **Vehicle Clock.** Before anything else, each valid event sets `clock = max(clock, event_ts)`. Then every open session of that vehicle with `last_event_ts + 30 minutes <= clock` closes with reason `TIMEOUT`, in `session_id` order. Only then is the event itself applied. (Planted Drift #2: an obvious port uses the wall clock for the idle timeout. During a file replay that clock never advances 30 minutes, so TIMEOUT sessions never close and fixture 09 loses its summaries.)
+4. **Heartbeat.** `HEARTBEAT` events have null `session_id`, advance the Vehicle Clock per rule 3, and are otherwise dropped. Never emitted anywhere, never DLQ'd, never counted.
+5. **Dedup.** Key is `(vehicle_id, seq)`. The first event in processing order wins. Any later event with the same key, whether or not its `event_id` or payload differs, goes to DLQ with reason `DUPLICATE` and is not applied. Seen keys are retained for the lifetime of the state. (Planted Drift #1: an obvious port keys on `event_id`, so fixture 04 accepts the re-sent events.)
+6. **Late.** An event whose `session_id` has already closed for this vehicle goes to DLQ with reason `LATE`. Closed session ids are retained for the lifetime of the state.
+7. **Session state.** Keyed by `session_id` inside the vehicle's state. Holds the list of accepted events and `last_event_ts` (max `event_ts` accepted). Events may arrive out of order within an open session.
+8. **Close.** A session closes on `COMPLETE` or `UNPLUGGED` (reason is the state name) or by rule 3 (`TIMEOUT`). A summary is emitted exactly once per session, at close.
+9. **Energy.** At close, sort accepted events by `(event_ts, event_id)`. For each consecutive pair `(i, i+1)` where `charging_state[i] == CHARGING`, add `0.5 * (power_kw[i] + power_kw[i+1]) * (event_ts[i+1] - event_ts[i]) / 3_600_000` kWh, with null `power_kw` as 0. Round the total to 3 decimal places, half-even.
+10. **Summary** (output, topic `vehicle.charging.sessions`, keyed by `session_id`):
 
 | Field | Type | Rule |
 |---|---|---|
@@ -137,10 +143,10 @@ These rules define the Goldens. The Scala build session implements them exactly.
 | `duration_s` | int | `(end_ts - start_ts) / 1000`, floor |
 | `start_soc_pct` | float or null | `soc_pct` of earliest event with non-null soc |
 | `end_soc_pct` | float or null | `soc_pct` of latest event with non-null soc |
-| `energy_kwh` | float | rule 7 |
+| `energy_kwh` | float | rule 9 |
 | `peak_power_kw` | float | max `power_kw`, 0 if all null |
 | `event_count` | int | accepted events after dedup |
-| `close_reason` | enum | rule 5 |
+| `close_reason` | enum | rule 8 |
 | `schema_version` | string | `"1"` |
 
 No `location` field on the summary, ever. No `location` in logs, ever. `vehicle_id` may appear in logs only hashed.
@@ -151,7 +157,16 @@ Input topic `vehicle.ota.events`: `{event_id, vehicle_id, campaign_id, status, p
 
 ### Fixture generator
 
-`harness/src/harness/gen_fixtures.py`, seeded (`--seed 20261026`), writes every file under `fixtures/`. Each charging fixture ends with one `HEARTBEAT` per vehicle at `max(event_ts) + 45 minutes` so idle sessions close deterministically. Every fixture has 3-6 vehicles and 4-12 sessions. The generator is itself a committed, deterministic artefact so the fixtures can be regenerated byte-identically.
+`harness/src/harness/gen_fixtures.py`, seeded (`--seed 20261026`), writes every file under `fixtures/`. The generator is itself a committed, deterministic artefact so the fixtures can be regenerated byte-identically. Invariants every charging fixture must satisfy, because the rules above depend on them:
+
+- Lines are written in `(ingest_ts, event_id)` order. Out-of-order scenarios are expressed as `event_ts` disagreeing with `ingest_ts`, never as file order.
+- `event_ts` is distinct across all events of one vehicle.
+- A duplicate (fixture 03 same `event_id`, fixture 04 new `event_id`) carries the same `session_id` as the original and a later `ingest_ts`.
+- Each fixture ends with one `HEARTBEAT` per vehicle at `max(event_ts) + 45 minutes`, so every open session closes.
+- Only fixture 09 contains sessions that close by `TIMEOUT`. Every session in every other fixture ends with `COMPLETE` or `UNPLUGGED` before the heartbeat. This is what makes Drift #2 show up on exactly one fixture.
+- Fixture 06 has a session that closes with `COMPLETE`, then a later-ingested event for that session (`LATE`).
+- Fixture 11 re-sends a whole session's events with identical `event_id`s and `seq`s (`DUPLICATE` on every one).
+- Every fixture has 3-6 vehicles and 4-12 sessions, several open at once per vehicle in fixture 02.
 
 ## Manifests
 
@@ -203,14 +218,16 @@ The Job manifest is the Baseline. The Processor manifest is what Devin writes or
 
 `uv run gate --processor charging-session` does, in order, and never stops early:
 
-1. **Harness.** For each fixture: run the Processor binary (`processors/target/release/charging-session --input F --output O --dlq D --log L`), load the Golden, compare per `session_id`: missing, extra, field diffs with `abs_tol=1e-6` for floats. DLQ compared per `event_id` plus reason. Report counts, not just pass/fail.
+1. **Harness.** For each fixture: run the Processor binary (`processors/target/release/charging-session --input F --output O --dlq D --log L`), load the Golden, compare per `session_id`: missing, extra, field diffs with `abs_tol=1e-6` for floats. DLQ compared as a multiset of `(event_id, reason)`. A non-zero exit or missing output file is a Harness finding for that fixture, and the Gate continues with whatever output exists. Report counts per fixture, not just pass/fail.
 2. **Contract.** Every output record validates against `contracts/charging-session.v1.schema.json` (`additionalProperties: false`). Semantic assertions: `start_ts <= end_ts`, `energy_kwh >= 0`, `event_count >= 1`, one summary per `session_id`.
 3. **Downstream System.** Run `downstream/warranty.py` over Golden and candidate output. It emits one line per session: `{session_id, flag}` where `flag` is `HIGH_ENERGY_PER_SOC` if `energy_kwh / max(end_soc - start_soc, 1) > 1.5`, `TIMEOUT` if `close_reason == TIMEOUT`, else `OK`. Diff the two result sets. Report `N sessions, M identical flags`.
-4. **Privacy.** (a) Diff Processor manifest against Baseline: new output fields, removed fields, classification changes, purpose changes, new topics, new downstream, retention change, logging change. (b) Runtime scan: every output record's keys must be a subset of the manifest's declared output fields; no output or log line may contain any `location` value from the fixture or any raw `vehicle_id` (hashed is fine). Findings carry a disposition: `no-material-change`, `clarification`, `violation`, `new-processing`.
-5. **Path check.** `git diff --name-only <base>..HEAD` must not touch `goldens/`, `fixtures/`, `manifests/*.job.yaml`, `harness/`, `contracts/`, `jobs/`. Base is `origin/main` unless `--base` is given.
+4. **Privacy.** (a) Diff Processor manifest against Baseline: new output fields, removed fields, classification changes, purpose changes, new topics, new downstream, retention change, logging change. (b) Runtime scan. Outputs: every record's keys must be a subset of the manifest's declared fields for that topic, and no output value may equal a `location` value from the fixture unless the manifest declares a location field on that topic. Logs: no line may contain a `location` value or a raw `vehicle_id` from the fixture (the 12-hex hash is fine). Findings carry a disposition: `no-material-change`, `clarification`, `violation`, `new-processing`.
+5. **Path check.** `git diff --name-only <base>..HEAD` must not touch `goldens/`, `fixtures/`, `manifests/*.job.yaml`, `harness/`, `contracts/`, `jobs/`, `downstream/`. Base is `origin/main` unless `--base` is given. This list must match `AGENTS.md` exactly.
 6. **Evidence Pack.** Write `evidence/<processor>/<short-sha>/evidence.json` and `evidence.md` with sections: identity (processor, sha, manifest versions, timestamp, command to reproduce), inventory (from manifest), change assessment (Baseline diff), validation (steps 1-5 with counts), disposition (worst finding wins), residual uncertainties (a fixed honest list: fixture coverage, runtime scan is value-based not flow-based, no broker semantics tested). Exit non-zero if any step is red.
 
 The Markdown must be readable in a PR description. Keep it under 150 lines.
+
+`evidence/` is gitignored, with `!evidence/ota-status/` as the one exception so the exemplar from Job #1 is in the tree. A Migration's Evidence Pack reaches reviewers through the PR description (the skill pastes it verbatim), not through a commit, which keeps the Migration diff confined to `processors/<name>/` and `manifests/<name>.processor.yaml`.
 
 ## Phase 1 - four build sessions
 
@@ -254,16 +271,35 @@ contents real and everything else as stubs:
    headings only.
 8. README.md written for a presenter who does not know Scala, Rust or
    Spark, per "README is the macOS setup guide": a "Local setup (macOS)"
-   section with exact install commands and tested versions, `make setup`,
-   `make doctor`, and a "Running" section. Assume Homebrew is the only
-   thing already installed. Test it: run `make doctor` from a shell where
-   none of the tools are on PATH yet, follow your own README, and confirm
-   it reaches `doctor: ok`.
+   section with exact install commands and the versions to install,
+   `make setup`, `make doctor`, and a "Running" section. Assume Homebrew
+   is the only thing already installed on the Mac.
 
+   You are running on Linux, so you cannot execute the macOS steps. Make
+   `make setup` and `make doctor` detect the OS: on macOS use Homebrew,
+   rustup and uv, and resolve JAVA_HOME via /usr/libexec/java_home; on
+   Linux use whatever lets you test the same logic here. Test the Linux
+   path end to end from a shell with none of the tools on PATH until
+   `make doctor` prints `doctor: ok`. Write the macOS branch from the
+   tools' own documentation and put a one-line "macOS path not yet
+   verified on a Mac" note at the top of the README section; it will be
+   removed after a human runs it.
+
+9. .gitignore covering the usual build output for all three toolchains,
+   plus `evidence/` with the exception `!evidence/ota-status/`.
+
+Do not create AGENTS.md or anything under .agents/; those arrive later.
 Do not implement any Job or Processor business logic. Do not write
 goldens/ or evidence/. Do not modify CONTEXT.md or anything under docs/
-other than the three stub files in item 7. Open a PR against main when
-`make fmt lint test` passes and `make doctor` prints `doctor: ok`.
+other than the three stub files in item 7.
+
+Open a PR against main when `make fmt lint test` passes and `make doctor`
+prints `doctor: ok` on Linux. End the PR description with a section
+titled "Presenter: verify on macOS" containing a checkbox list of every
+step a person must run on a Mac to confirm the README, in order, ending
+with `make doctor` printing `doctor: ok`. That person is not a Scala,
+Rust or Spark developer, so each step is a single copy-pasteable command
+with one sentence on what success looks like.
 ```
 
 ### S1 - Scala Jobs and Goldens (parallel)
@@ -278,11 +314,14 @@ ota-status: stateless Structured Streaming job, file source over a fixture,
 Trigger.AvailableNow, writes <fixture>.status.jsonl and <fixture>.dlq.jsonl.
 
 charging-session: Structured Streaming with flatMapGroupsWithState keyed by
-session_id, EventTimeTimeout, 30 minute idle timeout driven by the
-watermark on event_ts. HEARTBEAT events advance the watermark and are
-otherwise dropped. Dedup on (vehicle_id, seq) with first-seen-wins. Put
-the dedup key in its own small case class in a util file, and put the
-timeout duration in a config object, so the behaviour is spread over
+vehicle_id and GroupStateTimeout.NoTimeout. The state function sorts its
+group iterator by (ingest_ts, event_id) and applies the rules in order,
+using the Vehicle Clock for timeouts and lateness exactly as written. Do
+not use Spark's watermark or any timeout mechanism for business logic.
+Validation (rule 1) happens before groupByKey so events with a missing
+vehicle_id still reach the DLQ. Put the dedup key in its own small case
+class in a util file, the 30 minute duration in a config object, and the
+Vehicle Clock update in the state class, so the behaviour is spread over
 several files like a job that has evolved. Energy by trapezoid per the
 rules. Output sorted by session_id for stable Goldens.
 
@@ -298,13 +337,11 @@ Do not modify fixtures/ or harness/. If a fixture does not exercise a
 rule, or a rule produces no observable difference on any fixture, report
 it in the PR rather than changing the generator.
 
-If event-time timeouts do not fire deterministically under AvailableNow
-after two distinct approaches (for example: adjusting the watermark delay,
-and switching from ProcessingTimeTimeout to EventTimeTimeout with explicit
-heartbeat handling), fall back to a Spark batch implementation with
-window functions that applies the same rules (watermark becomes "max
-event_ts in the fixture"), keep the file structure, and say so clearly in
-the PR. Determinism matters more than streaming purity.
+If `make goldens` run twice is not byte-identical after two distinct
+attempts to fix it, fall back to a Spark batch implementation that groups
+by vehicle_id, sorts the same way and applies the same rules, keep the
+file structure, and say so clearly in the PR. Determinism matters more
+than streaming purity.
 
 Update README.md "Local setup (macOS)" and "Running" for anything the
 Scala side needs that is not already there: JDK 17 flags Spark needs,
@@ -337,12 +374,14 @@ docs/build-plan.md first.
    layout obvious: src/core.rs (pure), src/main.rs (adapters), src/types.rs.
 
 3. charging-session: scaffold only. Same layout as ota-status. types.rs
-   complete. core.rs has a `SessionState` struct and a `Processor` with
-   `fn on_event(&mut self, ev) -> Vec<Emitted>` and
-   `fn on_watermark(&mut self, ts) -> Vec<Emitted>` whose bodies are
-   `todo!()` with a doc comment describing the contract. main.rs wires
-   adapters and calls on_watermark for HEARTBEAT events. Must compile.
-   Do NOT implement dedup, energy, timeouts or anything from the business
+   complete, including `Emitted` as an enum of Summary or Dlq. core.rs
+   has a `Processor` with `fn on_event(&mut self, ev: ChargingEvent) ->
+   Vec<Emitted>` whose body is `todo!()` with a doc comment saying only
+   that events arrive in file order and that the Scala Job under
+   jobs/charging-session/ is the specification. No state struct fields,
+   no hints about keys, clocks or timeouts. main.rs reads the input in
+   order, calls on_event per line, and routes Emitted to the output and
+   DLQ sinks. Must compile. Do NOT implement anything from the business
    rules; that is a later Devin session's job.
 
 4. Workspace-level `cargo fmt`, `cargo clippy -D warnings`, `cargo test`
@@ -383,6 +422,8 @@ Deliverables:
   reasons), privacy.py (each finding type, each disposition), and
   gate.py path check.
 - `make gate PROCESSOR=` wired.
+- Path check list identical to the one in docs/build-plan.md step 5,
+  including downstream/.
 - ruff clean.
 - README.md "Running" section explains how to read a red Gate (which
   step failed, where the Evidence Pack is, what a Drift finding looks
@@ -394,9 +435,9 @@ Open a PR against main.
 
 ### End of Phase 1
 
-Merge S0, S3, S2, S1. Delete temporary Goldens, confirm `make gate PROCESSOR=ota-status` is green on `main` using the Scala Goldens, and that it writes `evidence/ota-status/<sha>/`. Commit that Evidence Pack. Confirm `make gate PROCESSOR=charging-session` is red on `main` because the scaffold panics on `todo!()`. That red is the correct starting state for the pre-run session.
+Merge S0, S3, S2, S1. Delete temporary Goldens, confirm `make gate PROCESSOR=ota-status` is green on `main` using the Scala Goldens, and that it writes `evidence/ota-status/<sha>/`. Commit that Evidence Pack (the gitignore exception allows it). Confirm `make gate PROCESSOR=charging-session` is red on `main` because the scaffold panics on `todo!()`. That red is the correct starting state for the pre-run session.
 
-**Then prove the README on your own MacBook**, which is the machine the terminal fallback runs on. Fresh clone into a new directory, follow `README.md` literally from "Local setup (macOS)", do not consult anything else. `make doctor` must print `doctor: ok`, then `make test` and `make gate PROCESSOR=ota-status` must be green. Every point where you had to guess, search or ask is a README defect: open one more Devin session with the list and have it fix the README and `make doctor`. Do not start Phase 2 until this passes, because every later check in the run-of-show assumes it.
+**Then prove the README on your own MacBook**, which is the machine the terminal fallback runs on. This is the first time the macOS path is executed at all: every Devin session runs on Linux and could only test the Linux branch of `make setup` and `make doctor`. Fresh clone into a new directory, follow `README.md` literally from "Local setup (macOS)", do not consult anything else. `make doctor` must print `doctor: ok`, then `make test` and `make gate PROCESSOR=ota-status` must be green. Every point where you had to guess, search or ask is a README defect: open one more Devin session with the list and have it fix the README and `make doctor`, then remove the "not yet verified on a Mac" note. Do not start Phase 2 until this passes, because every later check in the run-of-show assumes it.
 
 Create DeepWiki for the repo (free, one click).
 
@@ -441,8 +482,8 @@ If the session stops at a stop condition, read why. If the skill or Scala is at 
 
 From `demo/charging-session-migrated`:
 
-- `drift/dedup-and-idle`: change the dedup key to `event_id` and make the idle timeout use a wall-clock `Instant` with `end_ts` stamped from `SystemTime::now()`. Keep the code plausible, as if written by someone who had not read the Scala carefully. Confirm `make gate` is red with exactly two Drift findings (fixtures 03/04 and 09 at minimum) and nothing else red. Record the SHA.
-- `violation/location-in-summary`: add `end_location` to the summary from the last event's `location`, add it to the contract-free output struct but **not** to the manifest. Confirm `make gate` is red on contract (additionalProperties) and privacy (undeclared sensitive-location field on an output topic), and Harness shows extra-field diffs. Record the SHA.
+- `drift/dedup-and-idle`: change the dedup key to `event_id` and make the idle timeout use a wall-clock `Instant` instead of the Vehicle Clock. Keep the code plausible, as if written by someone who had not read the Scala carefully. Confirm `make gate` is red on the Harness for exactly fixtures 04 (extra accepted events, wrong `event_count`) and 09 (missing `TIMEOUT` summaries), green on every other fixture, and green on contract, Downstream System and privacy. Record the SHA.
+- `violation/location-in-summary`: add `end_location` to the Rust summary struct, populated from the last accepted event's `location`, without touching the manifest or the contract. Confirm `make gate` is red on contract (`additionalProperties`), red on privacy (undeclared field carrying a sensitive-location value on an output topic), and that the Harness shows extra-field diffs on every fixture. Record the SHA.
 
 ### D4 - Backup run of the live prompt
 
@@ -463,7 +504,7 @@ Full run of show twice, with a timer. Second time, simulate the live session bei
 |---|---|---|---|
 | `main` | Job #1 migrated, Job #2 Scala + Goldens + Rust scaffold | red (todo!) | pre-run session start |
 | `demo/charging-session-migrated` | Devin's green port, PR open | green | narration, PR, Devin Review |
-| `drift/dedup-and-idle` | port with two planted Drifts | red, 2 Drift findings | live session start, backup session |
+| `drift/dedup-and-idle` | port with two planted Drifts | red on fixtures 04 and 09 only | live session start, backup session |
 | `violation/location-in-summary` | port leaking location | red, contract + privacy | terminal beat |
 
 Record each branch's SHA here after D3:
@@ -500,10 +541,11 @@ Never cut: Goldens generated from the Scala, the Harness, the Gate path check, `
 
 | Risk | Mitigation |
 |---|---|
-| Event-time timeouts under `Trigger.AvailableNow` are nondeterministic | Heartbeats at end of every fixture; after two failed approaches, batch fallback (in S1 prompt) |
+| Goldens not byte-identical across runs | Business logic uses the Vehicle Clock and explicit `(ingest_ts, event_id)` ordering, never Spark's watermark or timeouts; heartbeats close every session; after two failed attempts, batch fallback (in S1 prompt) |
+| Scala and Rust disagree on semantics that the rules leave open | Every ordering, tie-break and precedence is written down in the rules; S1 must report any rule it had to interpret rather than resolve it silently |
 | rdkafka build breaks the default `cargo build` | Feature-gated, cmake-build, never in the default path |
 | Pre-run session does not reach green | Re-run once after fixing the cause; the Drift branch and live session still work from a hand-corrected port |
 | Devin edits a read-only path despite `AGENTS.md` | The Gate's path check turns red and the PR diff shows it; this becomes objection 2's artefact |
 | Rounding differences between Scala `BigDecimal` half-even and Rust | Both round to 3 dp half-even explicitly; Harness tolerance 1e-6 catches float noise, not rule differences |
-| Fixtures too small to exercise the Drifts | Fixtures 03, 04 and 09 exist specifically for them; D3 confirms the Gate shows both |
+| Fixtures too small to exercise the Drifts | Fixtures 04 and 09 exist specifically for them, and the generator invariants keep every other fixture free of `TIMEOUT` closes so Drift #2 is isolated; D3 confirms the Gate shows both |
 | Scenario stack differs from Lucid's actual stack | Objection 9; nothing in the method is Rust-specific |

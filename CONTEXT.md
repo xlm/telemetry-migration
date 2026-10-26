@@ -24,6 +24,16 @@ _Avoid_: Consumer (collides with Kafka consumer group), client, subscriber
 The generated per-Migration artefact that a human privacy or engineering reviewer reads to decide whether the Migration stays within the approved Baseline.
 _Avoid_: Privacy review (that is the human act, which the pack informs but does not replace), report, audit
 
+## Processing
+
+**Vehicle Clock**:
+The highest event time seen so far for one vehicle, heartbeats included. The only clock a Job or Processor may consult to decide that a session is idle or an event is late.
+_Avoid_: Watermark (Spark-specific), wall clock, processing time, now
+
+**Heartbeat**:
+A vehicle event that carries no session and exists only to advance that vehicle's Vehicle Clock. Never emitted, never counted, never rejected.
+_Avoid_: Keepalive, ping, tick
+
 ## Verification
 
 **Golden**:
