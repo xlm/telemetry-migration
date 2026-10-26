@@ -59,7 +59,7 @@ setup:
 			run_root() { \
 				if [ "$$(id -u)" -eq 0 ]; then \
 					"$$@"; \
-				elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then \
+				elif command -v sudo >/dev/null 2>&1; then \
 					sudo "$$@"; \
 				else \
 					printf '%s\n' 'Install JDK 17, curl, tar, and a C/C++ compiler with your Linux package manager, then rerun make setup.'; \
