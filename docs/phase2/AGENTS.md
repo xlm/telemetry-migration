@@ -7,7 +7,12 @@ Legacy Scala/Spark Jobs under `jobs/` are being replaced one at a time by Rust P
 - `make gate PROCESSOR=<name>` - run the full Gate for one Processor and write its Evidence Pack to `evidence/<name>/<sha>/`.
 - `make goldens JOB=<name>` - regenerate Goldens from the Scala Job. Platform team only.
 - `make test`, `make fmt`, `make lint` - all three languages.
+- `make setup`, `make doctor` - install and verify the macOS toolchain.
 - Rust: `cargo build` never needs Kafka. `--features kafka` is optional and not required for any test.
+
+## README is the setup guide
+
+`README.md` is written for a maintainer who does not know Scala, Rust or Spark and runs everything on macOS. If your change adds or changes a tool, dependency, environment variable, Makefile target or first-run step, update `README.md` "Local setup (macOS)" or "Running" and extend `make doctor` in the same PR. Do not assume the reader knows what is obvious to a Rust or Scala developer.
 
 ## Gate inputs are read-only
 

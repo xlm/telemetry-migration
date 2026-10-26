@@ -84,7 +84,18 @@ telemetry-migration/
 - JDK 17, sbt 1.x, Spark 3.5.x in local mode (`local[2]`). No cluster, no Kafka for Goldens.
 - Rust stable, `cargo`. `rdkafka` only under `--features kafka`, with `cmake-build` so it does not require a system librdkafka when someone does turn it on.
 - Python 3.12, `uv`, `ruff`, `pytest`. `jsonschema`, `pyyaml`, `click`. Nothing else unless unavoidable.
-- `make` as the single entry point. Targets: `gate PROCESSOR=`, `goldens JOB=`, `fixtures`, `test`, `fmt`, `lint`.
+- `make` as the single entry point. Targets: `setup`, `doctor`, `gate PROCESSOR=`, `goldens JOB=`, `fixtures`, `test`, `fmt`, `lint`.
+
+### README is the macOS setup guide
+
+The presenter is not a Scala, Rust or Spark developer and will run the terminal fallback on a MacBook. `README.md` must therefore let someone with only Homebrew installed get to a green `make gate PROCESSOR=ota-status` by following it top to bottom. Rules, enforced through every session prompt and later through `AGENTS.md`:
+
+- `README.md` has a section `## Local setup (macOS)` listing every tool with the exact `brew install` (or `rustup`, `uv`) command and the version that was tested, followed by `make setup` and `make doctor`.
+- `make setup` installs or upgrades everything it can through Homebrew, rustup and uv, and prints a clear instruction for anything it cannot. It must be safe to re-run.
+- `make doctor` checks every tool is present at a compatible version, that `JAVA_HOME` resolves to JDK 17, and that `cargo build`, `sbt compile` and `uv sync` have all succeeded at least once. Green output ends with a single line `doctor: ok`.
+- A `## Running` section with the five commands a presenter needs: `make test`, `make goldens JOB=`, `make gate PROCESSOR=`, how to read a red Gate, how to find the Evidence Pack.
+- Any PR that adds a tool, dependency, environment variable, Makefile target or first-run step updates the README in the same PR. "It is obvious to a Rust developer" is not a reason to leave it out.
+- Spark on macOS specifics belong in the README when they bite: JDK 17 `--add-opens` flags, Apple Silicon, `SPARK_LOCAL_IP`, and the first `sbt` run downloading dependencies for several minutes.
 
 ## Data model and business rules
 
@@ -235,16 +246,24 @@ contents real and everything else as stubs:
    12 hex), and two empty binaries. The kafka adapter is a stub module
    behind a cargo feature "kafka" that does not compile anything from
    rdkafka yet. Must `cargo build`.
-6. Makefile with targets gate, goldens, fixtures, test, fmt, lint that call
-   into the right tool; gate and goldens may print "not implemented" and
-   exit 1 for now.
+6. Makefile with targets setup, doctor, gate, goldens, fixtures, test, fmt,
+   lint that call into the right tool; gate and goldens may print "not
+   implemented" and exit 1 for now. `make setup` and `make doctor` must be
+   real, per docs/build-plan.md "README is the macOS setup guide".
 7. docs/architecture.md, docs/cutover.md, docs/migration-states.md with
    headings only.
+8. README.md written for a presenter who does not know Scala, Rust or
+   Spark, per "README is the macOS setup guide": a "Local setup (macOS)"
+   section with exact install commands and tested versions, `make setup`,
+   `make doctor`, and a "Running" section. Assume Homebrew is the only
+   thing already installed. Test it: run `make doctor` from a shell where
+   none of the tools are on PATH yet, follow your own README, and confirm
+   it reaches `doctor: ok`.
 
 Do not implement any Job or Processor business logic. Do not write
-goldens/ or evidence/. Do not modify CONTEXT.md, README.md or anything
-under docs/ other than the three stub files in item 7. Open a PR against
-main when `make fmt lint test` passes.
+goldens/ or evidence/. Do not modify CONTEXT.md or anything under docs/
+other than the three stub files in item 7. Open a PR against main when
+`make fmt lint test` passes and `make doctor` prints `doctor: ok`.
 ```
 
 ### S1 - Scala Jobs and Goldens (parallel)
@@ -287,6 +306,12 @@ window functions that applies the same rules (watermark becomes "max
 event_ts in the fixture"), keep the file structure, and say so clearly in
 the PR. Determinism matters more than streaming purity.
 
+Update README.md "Local setup (macOS)" and "Running" for anything the
+Scala side needs that is not already there: JDK 17 flags Spark needs,
+SPARK_LOCAL_IP, first-run download time, how long `make goldens` takes.
+Extend `make doctor` if you add a requirement. The reader does not know
+Scala or Spark.
+
 Open a PR against main.
 ```
 
@@ -321,7 +346,15 @@ docs/build-plan.md first.
    rules; that is a later Devin session's job.
 
 4. Workspace-level `cargo fmt`, `cargo clippy -D warnings`, `cargo test`
-   green. Open a PR against main.
+   green.
+
+5. Update README.md "Local setup (macOS)" and "Running" for anything the
+   Rust side needs that is not already there, including that the default
+   build never needs Kafka, cmake or librdkafka, and what to install if
+   someone does want `--features kafka`. Extend `make doctor` if you add a
+   requirement. The reader does not know Rust.
+
+Open a PR against main.
 ```
 
 ### S3 - Harness, Gate, Evidence Pack, Downstream System (parallel)
@@ -351,6 +384,10 @@ Deliverables:
   gate.py path check.
 - `make gate PROCESSOR=` wired.
 - ruff clean.
+- README.md "Running" section explains how to read a red Gate (which
+  step failed, where the Evidence Pack is, what a Drift finding looks
+  like) for a reader who has never seen the Harness. Extend `make doctor`
+  if you add a requirement.
 
 Open a PR against main.
 ```
@@ -358,6 +395,8 @@ Open a PR against main.
 ### End of Phase 1
 
 Merge S0, S3, S2, S1. Delete temporary Goldens, confirm `make gate PROCESSOR=ota-status` is green on `main` using the Scala Goldens, and that it writes `evidence/ota-status/<sha>/`. Commit that Evidence Pack. Confirm `make gate PROCESSOR=charging-session` is red on `main` because the scaffold panics on `todo!()`. That red is the correct starting state for the pre-run session.
+
+**Then prove the README on your own MacBook**, which is the machine the terminal fallback runs on. Fresh clone into a new directory, follow `README.md` literally from "Local setup (macOS)", do not consult anything else. `make doctor` must print `doctor: ok`, then `make test` and `make gate PROCESSOR=ota-status` must be green. Every point where you had to guess, search or ask is a README defect: open one more Devin session with the list and have it fix the README and `make doctor`. Do not start Phase 2 until this passes, because every later check in the run-of-show assumes it.
 
 Create DeepWiki for the repo (free, one click).
 

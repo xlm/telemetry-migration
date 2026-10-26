@@ -157,6 +157,7 @@ Does not prove:
 
 ## Pre-meeting checklist (morning of)
 
+- [ ] `make doctor` prints `doctor: ok` on this laptop.
 - [ ] `git fetch`, every demo branch at its recorded SHA (see `docs/build-plan.md`, "Demo states").
 - [ ] `make gate PROCESSOR=ota-status` green on `main`.
 - [ ] `make gate PROCESSOR=charging-session` red on `drift/dedup-and-idle` with exactly two Drift findings.
