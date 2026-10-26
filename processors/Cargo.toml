@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "telemetry-core",
+    "ota-status",
+    "charging-session",
+]
+resolver = "2"

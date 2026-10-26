@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Charging event",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "pattern": "^VH-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^CS-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "event_ts": {
+      "type": "integer"
+    },
+    "ingest_ts": {
+      "type": "integer"
+    },
+    "seq": {
+      "type": "integer"
+    },
+    "charging_state": {
+      "enum": [
+        "PLUGGED_IN",
+        "CHARGING",
+        "PAUSED",
+        "COMPLETE",
+        "UNPLUGGED",
+        "HEARTBEAT"
+      ]
+    },
+    "soc_pct": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "power_kw": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "location": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "additionalProperties": false
+    },
+    "schema_version": {
+      "const": "1"
+    }
+  },
+  "required": [
+    "event_id",
+    "vehicle_id",
+    "session_id",
+    "event_ts",
+    "ingest_ts",
+    "seq",
+    "charging_state",
+    "soc_pct",
+    "power_kw",
+    "location",
+    "schema_version"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "charging_state": {
+            "const": "HEARTBEAT"
+          }
+        },
+        "required": [
+          "charging_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "session_id": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^CS-[0-9a-fA-F]{8}$",
+            "maxLength": 11
+          }
+        }
+      }
+    }
+  ]
+}

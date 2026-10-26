@@ -1,0 +1,8 @@
+classifications:
+  public: {}
+  internal-operational: {}
+  vehicle-identifying:
+    log: hashed-only
+  sensitive-location:
+    log: forbidden
+    output: forbidden-unless-listed

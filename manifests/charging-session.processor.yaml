@@ -1,0 +1,43 @@
+name: charging-session
+kind: job
+version: 1
+inputs:
+  - topic: vehicle.charging.events
+    fields:
+      - {name: event_id, classification: internal-operational, purpose: validation-and-ordering}
+      - {name: vehicle_id, classification: vehicle-identifying, purpose: session-aggregation}
+      - {name: session_id, classification: internal-operational, purpose: session-aggregation}
+      - {name: event_ts, classification: internal-operational, purpose: vehicle-clock-and-energy-calculation}
+      - {name: ingest_ts, classification: internal-operational, purpose: processing-order}
+      - {name: seq, classification: internal-operational, purpose: deduplication}
+      - {name: charging_state, classification: internal-operational, purpose: session-aggregation}
+      - {name: soc_pct, classification: internal-operational, purpose: session-summary}
+      - {name: power_kw, classification: internal-operational, purpose: energy-calculation}
+      - {name: location, classification: sensitive-location, purpose: none}
+      - {name: schema_version, classification: public, purpose: contract-version}
+outputs:
+  - topic: vehicle.charging.sessions
+    downstream: [warranty, service]
+    fields:
+      - {name: session_id, classification: internal-operational, derived_from: [session_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: start_ts, classification: internal-operational, derived_from: [event_ts]}
+      - {name: end_ts, classification: internal-operational, derived_from: [event_ts]}
+      - {name: duration_s, classification: internal-operational, derived_from: [event_ts]}
+      - {name: start_soc_pct, classification: internal-operational, derived_from: [soc_pct, event_ts, event_id]}
+      - {name: end_soc_pct, classification: internal-operational, derived_from: [soc_pct, event_ts, event_id]}
+      - {name: energy_kwh, classification: internal-operational, derived_from: [power_kw, event_ts, charging_state]}
+      - {name: peak_power_kw, classification: internal-operational, derived_from: [power_kw]}
+      - {name: event_count, classification: internal-operational, derived_from: [seq, charging_state]}
+      - {name: close_reason, classification: internal-operational, derived_from: [charging_state, event_ts]}
+      - {name: schema_version, classification: public, derived_from: [schema_version]}
+  - topic: vehicle.charging.dlq
+    downstream: [ops]
+    fields:
+      - {name: event_id, classification: internal-operational, derived_from: [event_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: reason, classification: internal-operational, derived_from: [event_id, vehicle_id, session_id, event_ts, charging_state, soc_pct, power_kw, seq]}
+logging:
+  forbidden: [location]
+  hashed: [vehicle_id]
+retention_days: 30

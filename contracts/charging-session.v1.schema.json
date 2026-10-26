@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Charging-session summary",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "pattern": "^CS-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "vehicle_id": {
+      "type": "string",
+      "pattern": "^VH-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "start_ts": {
+      "type": "integer"
+    },
+    "end_ts": {
+      "type": "integer"
+    },
+    "duration_s": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "start_soc_pct": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "end_soc_pct": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "energy_kwh": {
+      "type": "number",
+      "minimum": 0
+    },
+    "peak_power_kw": {
+      "type": "number",
+      "minimum": 0
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "close_reason": {
+      "enum": [
+        "COMPLETE",
+        "UNPLUGGED",
+        "TIMEOUT"
+      ]
+    },
+    "schema_version": {
+      "const": "1"
+    }
+  },
+  "required": [
+    "session_id",
+    "vehicle_id",
+    "start_ts",
+    "end_ts",
+    "duration_s",
+    "start_soc_pct",
+    "end_soc_pct",
+    "energy_kwh",
+    "peak_power_kw",
+    "event_count",
+    "close_reason",
+    "schema_version"
+  ],
+  "additionalProperties": false
+}
