@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OTA status",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "pattern": "^VH-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "DOWNLOADING",
+        "INSTALLING",
+        "SUCCEEDED",
+        "FAILED"
+      ]
+    },
+    "progress_pct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "event_ts": {
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "1"
+    }
+  },
+  "required": [
+    "event_id",
+    "vehicle_id",
+    "campaign_id",
+    "status",
+    "progress_pct",
+    "event_ts",
+    "schema_version"
+  ],
+  "additionalProperties": false
+}

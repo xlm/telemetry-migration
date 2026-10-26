@@ -1,0 +1,34 @@
+name: ota-status
+kind: processor
+version: 1
+inputs:
+  - topic: vehicle.ota.events
+    fields:
+      - {name: event_id, classification: internal-operational, purpose: status-projection}
+      - {name: vehicle_id, classification: vehicle-identifying, purpose: status-projection}
+      - {name: campaign_id, classification: internal-operational, purpose: status-projection}
+      - {name: status, classification: internal-operational, purpose: status-normalization}
+      - {name: progress_pct, classification: internal-operational, purpose: progress-clamping}
+      - {name: event_ts, classification: internal-operational, purpose: status-projection}
+      - {name: schema_version, classification: public, purpose: contract-version}
+outputs:
+  - topic: vehicle.ota.status
+    downstream: [ota]
+    fields:
+      - {name: event_id, classification: internal-operational, derived_from: [event_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: campaign_id, classification: internal-operational, derived_from: [campaign_id]}
+      - {name: status, classification: internal-operational, derived_from: [status]}
+      - {name: progress_pct, classification: internal-operational, derived_from: [progress_pct]}
+      - {name: event_ts, classification: internal-operational, derived_from: [event_ts]}
+      - {name: schema_version, classification: public, derived_from: [schema_version]}
+  - topic: vehicle.ota.dlq
+    downstream: [ops]
+    fields:
+      - {name: event_id, classification: internal-operational, derived_from: [event_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: reason, classification: internal-operational, derived_from: [status]}
+logging:
+  forbidden: [location]
+  hashed: [vehicle_id]
+retention_days: 30

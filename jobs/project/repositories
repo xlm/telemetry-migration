@@ -1,0 +1,4 @@
+[repositories]
+local
+maven-central: https://repo.maven.apache.org/maven2/
+google-maven-central-mirror: https://maven-central.storage-download.googleapis.com/maven2/
