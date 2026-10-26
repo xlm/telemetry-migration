@@ -83,6 +83,8 @@ where
     }
 }
 
+/// Callers must call `finish` (or `flush`) before reporting success because
+/// dropping the sink cannot report write errors.
 pub struct JsonlSink<W> {
     writer: W,
 }
@@ -102,6 +104,11 @@ impl JsonlSink<BufWriter<File>> {
 impl<W: Write> JsonlSink<W> {
     pub fn flush(&mut self) -> Result<(), JsonlError> {
         self.writer.flush().map_err(JsonlError::from)
+    }
+
+    pub fn finish(mut self) -> Result<W, JsonlError> {
+        self.flush()?;
+        Ok(self.writer)
     }
 }
 
@@ -186,6 +193,43 @@ mod tests {
         let decoded: OtaEvent =
             serde_json::from_slice(&output[..output.len() - 1]).expect("written record");
         assert_eq!(decoded, event);
+    }
+
+    #[test]
+    fn finish_returns_the_writer_with_written_records() {
+        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let mut sink = JsonlSink::from_writer(Vec::new());
+        sink.write_record(&event).expect("write record");
+
+        let output = sink.finish().expect("finish sink");
+
+        assert_eq!(output.last(), Some(&b'\n'));
+        let decoded: OtaEvent =
+            serde_json::from_slice(&output[..output.len() - 1]).expect("written record");
+        assert_eq!(decoded, event);
+    }
+
+    #[test]
+    fn finish_propagates_flush_errors() {
+        struct FailingFlushWriter;
+
+        impl std::io::Write for FailingFlushWriter {
+            fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+                Ok(buffer.len())
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                Err(io::Error::other("injected flush failure"))
+            }
+        }
+
+        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let mut sink = JsonlSink::from_writer(FailingFlushWriter);
+        sink.write_record(&event).expect("write record");
+
+        let result = sink.finish();
+
+        assert!(matches!(result, Err(JsonlError::Io(_))));
     }
 
     #[test]
