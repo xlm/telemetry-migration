@@ -1,6 +1,6 @@
 # Build plan - `telemetry-migration`
 
-Budget: two calendar days before the meeting. That constraint drives the cut order at the bottom, but nothing below is a time estimate. Phases encode dependency order (what must land before what), and session prompts contain attempt-based stop conditions rather than durations, because Devin cannot judge wall-clock time. Everything is built by Devin cloud sessions except the Playbook text, which is written here and pasted in by hand. Vocabulary per `CONTEXT.md`.
+Budget: two calendar days before the meeting. That constraint drives the cut order at the bottom, but nothing below is a time estimate. Phases encode dependency order (what must land before what), and session prompts contain attempt-based stop conditions rather than durations, because Devin cannot judge wall-clock time. Everything is built by Devin cloud sessions. The migration procedure and the read-only rule are repo-committed files (`.agents/skills/migrate-job/SKILL.md` and `AGENTS.md`), already written under `docs/phase2/` and moved into place at the end of Phase 1. Devin Knowledge and Playbooks are retired in favour of Skills, and repo-committed files are the better demo artefact anyway: versioned, reviewable, visible in the tree. Vocabulary per `CONTEXT.md`.
 
 Decisions already made (do not reopen during the build): see the "Shared understanding" summary in the planning conversation. In short: Scala Jobs run in Spark local mode and generate Goldens; Rust Processors are pure cores with a file adapter and a feature-gated Kafka adapter; Python (uv, ruff, pytest) owns Harness, privacy checker, Evidence Pack and the Downstream System script; shadow/cutover/rollback is documented, not built.
 
@@ -75,7 +75,8 @@ telemetry-migration/
 ├── deploy/
 │   ├── docker-compose.yaml         # Redpanda, optional, Phase 2
 │   └── k8s/                        # illustrative manifests only
-└── .devin/                         # nothing needed here; Playbook and Knowledge live in the Devin org
+├── AGENTS.md                       # always-on: commands, read-only Gate inputs (Phase 2 onward)
+└── .agents/skills/migrate-job/SKILL.md   # the migration procedure, invoked as @skills:migrate-job <job> (Phase 2 onward)
 ```
 
 ## Toolchain
@@ -241,7 +242,9 @@ contents real and everything else as stubs:
    headings only.
 
 Do not implement any Job or Processor business logic. Do not write
-goldens/. Open a PR against main when `make fmt lint test` passes.
+goldens/ or evidence/. Do not modify CONTEXT.md, README.md or anything
+under docs/ other than the three stub files in item 7. Open a PR against
+main when `make fmt lint test` passes.
 ```
 
 ### S1 - Scala Jobs and Goldens (parallel)
@@ -271,6 +274,10 @@ quirks. Do not make it artificially confusing.
 Wire `make goldens JOB=<name>` to run the job over every fixture in
 fixtures/<name>/ and write goldens/<name>/. Run it for both jobs and commit
 the Goldens. Run it twice and confirm the output is byte-identical.
+
+Do not modify fixtures/ or harness/. If a fixture does not exercise a
+rule, or a rule produces no observable difference on any fixture, report
+it in the PR rather than changing the generator.
 
 If event-time timeouts do not fire deterministically under AvailableNow
 after two distinct approaches (for example: adjusting the watermark delay,
@@ -364,79 +371,32 @@ git push
 
 Fill in the SHA table and run the reset script from your local copy, not from the demo repo.
 
+**In the same commit, move the Phase 2 files into place.** They are not committed to their real paths during Phase 1 because `AGENTS.md` is auto-injected into every session and its read-only rule would block S1 (writes `jobs/` and `goldens/`) and S3 (writes `harness/`).
+
+```
+git mv docs/phase2/AGENTS.md AGENTS.md
+mkdir -p .agents/skills/migrate-job
+git mv docs/phase2/migrate-job.SKILL.md .agents/skills/migrate-job/SKILL.md
+rmdir docs/phase2
+```
+
+Read both files once more before pushing; the SKILL.md is the thing you show on screen 5.
+
 ## Phase 2 - sequential
 
-### D1 - Playbook and Knowledge (by hand)
+### D1 - Confirm the skill is discovered
 
-Create in the Devin org.
+`AGENTS.md` and `.agents/skills/migrate-job/SKILL.md` were moved into place at the end of Phase 1. Devin indexes `SKILL.md` files from connected repos at session start, so open a throwaway session on `main` and ask it to list available skills. `migrate-job` must appear. If it does not, check the frontmatter parses (the `description` field is what Devin reads to decide relevance). Terminate the throwaway session.
 
-**Knowledge entry** (trigger: repo `telemetry-migration`):
+The skill has `triggers: ["user"]`, so Devin will not auto-invoke it. That is deliberate: the live D4 session must not start running the full migration procedure when its task is a Drift fix. `AGENTS.md`, by contrast, is injected into every session, which is how the read-only rule reaches the live session without any skill being active (Devin allows only one active skill at a time).
 
-```
-Title: Never edit Goldens, Manifests or Harness to make the Gate pass
+### D2 - Pre-run migration session
 
-In telemetry-migration, goldens/, fixtures/, contracts/, harness/, jobs/
-and manifests/*.job.yaml are the inputs to the migration Gate. They are
-owned by the platform and privacy teams. If the Gate is red, the fix goes
-in processors/. If you believe a Golden, Manifest or Harness check is
-itself wrong, stop, explain why in your report, and do not change it.
-manifests/*.processor.yaml is yours to update to describe what the
-Processor actually does, but never to loosen a classification or add a
-destination the Baseline does not have.
-```
-
-**Playbook: "Telemetry Job Migration"**
-
-```
-Inputs
-- JOB: the name of the legacy Job under jobs/ to migrate. Its Processor
-  scaffold exists under processors/JOB/.
-
-Procedure
-1. Characterise. Read jobs/JOB/ completely, including util and config
-   files. Write processors/JOB/CHARACTERISATION.md listing every business
-   rule you find: validation, dedup key, state key, close conditions,
-   timeout semantics (event time or processing time), aggregation
-   formulas with rounding, output fields and their derivation, DLQ
-   reasons. Cite the Scala file and line for each rule. If any rule is
-   ambiguous, list the ambiguity and how you resolved it.
-2. Compare against manifests/JOB.job.yaml. If the Scala reads, emits or
-   logs a field the Baseline does not declare, stop and report; do not
-   proceed.
-3. Implement processors/JOB/src/core.rs as a pure core, following the
-   module layout of processors/ota-status/. Unit tests for each rule in
-   the characterisation, especially dedup, out-of-order, late, timeout,
-   and numeric rounding.
-4. Update manifests/JOB.processor.yaml to describe exactly what the
-   Processor reads, derives, emits and logs. Do not add fields,
-   destinations or purposes absent from the Baseline.
-5. Run `make gate PROCESSOR=JOB`. For every Drift, go back to the Scala,
-   find what it actually does, fix the Rust, re-run. Do not touch
-   goldens/, fixtures/, contracts/, harness/, jobs/ or the Baseline.
-6. When green, open a PR against main. The description must contain, in
-   order: the Evidence Pack Markdown from evidence/JOB/<sha>/evidence.md
-   verbatim, a list of Drifts found during step 5 and their root causes,
-   the known limitations from CHARACTERISATION.md.
-
-Stop conditions (report instead of continuing)
-- Step 2 finds undeclared data handling.
-- A rule in the Scala cannot be determined from the code.
-- The Gate is red after three fix attempts on the same Drift.
-- Any check would require editing a forbidden path.
-
-Acceptance
-- `make gate PROCESSOR=JOB` green.
-- Diff confined to processors/JOB/ and manifests/JOB.processor.yaml.
-- PR description structured as in step 6.
-```
-
-### D2 - Pre-run Playbook session
-
-Start on `main`. Prompt: `Use the "Telemetry Job Migration" playbook to migrate the charging-session job.`
+Start on `main`. Prompt: `@skills:migrate-job charging-session`
 
 Expected: green PR on a `devin/...` branch. Rename or recreate that branch as `demo/charging-session-migrated` so the demo states are stable. Leave the PR open. Trigger Devin Review on it.
 
-If the session stops at a stop condition, read why. If the Playbook or Scala is at fault, fix and re-run once. If Devin genuinely cannot determine a rule, that is also a demo moment, but prefer a clean green run for narration.
+If the session stops at a stop condition, read why. If the skill or Scala is at fault, fix and re-run once. If Devin genuinely cannot determine a rule, that is also a demo moment, but prefer a clean green run for narration.
 
 ### D3 - Drift and violation branches
 
@@ -495,7 +455,7 @@ gh pr list --author devin-ai-integration --state open   # close anything that is
 4. Violation branch (lose the privacy-red beat, keep the Evidence Pack on the green PR).
 5. Spark Structured Streaming to Spark batch for Goldens (already the in-session fallback).
 
-Never cut: Goldens generated from the Scala, the Harness, the Gate path check, the Knowledge entry, the Playbook.
+Never cut: Goldens generated from the Scala, the Harness, the Gate path check, `AGENTS.md`, the `migrate-job` skill.
 
 ## Risks
 
@@ -504,7 +464,7 @@ Never cut: Goldens generated from the Scala, the Harness, the Gate path check, t
 | Event-time timeouts under `Trigger.AvailableNow` are nondeterministic | Heartbeats at end of every fixture; after two failed approaches, batch fallback (in S1 prompt) |
 | rdkafka build breaks the default `cargo build` | Feature-gated, cmake-build, never in the default path |
 | Pre-run session does not reach green | Re-run once after fixing the cause; the Drift branch and live session still work from a hand-corrected port |
-| Devin edits a forbidden path despite Knowledge | The Gate's path check turns red and the PR diff shows it; this becomes objection 2's artefact |
+| Devin edits a read-only path despite `AGENTS.md` | The Gate's path check turns red and the PR diff shows it; this becomes objection 2's artefact |
 | Rounding differences between Scala `BigDecimal` half-even and Rust | Both round to 3 dp half-even explicitly; Harness tolerance 1e-6 catches float noise, not rule differences |
 | Fixtures too small to exercise the Drifts | Fixtures 03, 04 and 09 exist specifically for them; D3 confirms the Gate shows both |
 | Scenario stack differs from Lucid's actual stack | Objection 9; nothing in the method is Rust-specific |

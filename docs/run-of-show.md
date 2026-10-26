@@ -6,16 +6,16 @@ Vocabulary: see `CONTEXT.md`. Use those words in the room, especially Job / Proc
 
 ## One-sentence thesis
 
-The expensive part of moving the remaining Jobs is not writing Rust, it is proving to engineering and privacy reviewers that each Processor is safe. Devin does the Migration inside a Gate that produces that proof, and the same Playbook does it for every Job after the first.
+The expensive part of moving the remaining Jobs is not writing Rust, it is proving to engineering and privacy reviewers that each Processor is safe. Devin does the Migration inside a Gate that produces that proof, and the same skill does it for every Job after the first.
 
 ## Screens you need open before walking in
 
 1. Devin cloud, new-session page, repo `telemetry-migration`, branch `drift/dedup-and-idle` selected.
-2. GitHub: the open PR from the pre-run Playbook session (`demo/charging-session-migrated` into `main`), scrolled to the Evidence Pack in the description.
-3. Devin cloud: the completed pre-run Playbook session, scrolled to the top.
+2. GitHub: the open PR from the pre-run migration session (`demo/charging-session-migrated` into `main`), scrolled to the Evidence Pack in the description.
+3. Devin cloud: the completed pre-run migration session, scrolled to the top.
 4. Devin cloud: the completed backup run of the live prompt (in case the live one is slow).
-5. Playbook page: "Telemetry Job Migration".
-6. Knowledge page: the entry "Never edit Goldens, Manifests or Harness to make the Gate pass".
+5. GitHub: `.agents/skills/migrate-job/SKILL.md` rendered.
+6. GitHub: `AGENTS.md` rendered, scrolled to "Gate inputs are read-only".
 7. Terminal in a local clone, on `violation/location-in-summary`, with `make gate PROCESSOR=charging-session` typed but not run.
 8. `docs/cutover.md` rendered.
 9. DeepWiki page for the repo (optional, objection 5).
@@ -41,9 +41,9 @@ Screen 2 (GitHub tree). Point at four things only:
 
 If the Architect asks how Devin learns an undocumented Job: screen 9, DeepWiki, ten seconds.
 
-### 3:00 - 7:00 The pre-run Playbook Migration
+### 3:00 - 7:00 The pre-run Migration
 
-Screen 5 for 30 seconds: the Playbook. Read the inputs, the forbidden operations, the acceptance criteria out loud. "Every Job from here on starts with this."
+Screen 5 for 30 seconds: the `migrate-job` skill. Read the step headings, the stop conditions and the acceptance criteria out loud. "Every Job from here on starts with this. It is a file in the repo, so your architects review changes to the process the same way they review code."
 
 Screen 3: the completed session. Scroll, do not read. Narrate the shape:
 
@@ -70,11 +70,11 @@ Screen 1. Three outcomes:
 - **Mid-flight**: show where it is (usually it has found the dedup key by now). Say "I ran this exact prompt yesterday" and switch to screen 4 for the ending. Come back to screen 1 at the end of Q&A if it has finished.
 - **Stuck or wrong**: say so plainly, switch to screen 4. Do not rescue it live.
 
-Whichever happens, screen 6 for ten seconds: the Knowledge entry forbidding edits to Goldens, Manifests and Harness. "This is why the diff only touches Rust."
+Whichever happens, screen 6 for ten seconds: the read-only section of `AGENTS.md`. "This is injected into every session on this repo. It is why the diff only touches Rust, and the Gate checks the same list mechanically."
 
 ### 11:00 - 13:00 Repeat for Job #3 and what humans keep
 
-Screen 5 again, one sentence: "Battery-health is next. Same Playbook, different Job name."
+Screen 5 again, one sentence: "Battery-health is next. `@skills:migrate-job battery-health`. Same procedure, different argument."
 
 Then what humans keep, in this order: architectural approval, privacy sign-off on the Evidence Pack, the cutover decision. Screen 8, `docs/cutover.md`, one sentence: "Shadow consumer group, shadow topic, idempotent producer, offset handoff. Documented, not demonstrated, because it depends on your deployment pipeline, which already exists."
 
@@ -103,14 +103,13 @@ what the legacy job actually does, what the Rust did instead, and how you
 verified the fix.
 ```
 
-### Pre-run prompt (screen 3, branch `main`, via Playbook)
+### Pre-run prompt (screen 3, branch `main`)
 
 ```
-Use the "Telemetry Job Migration" playbook to migrate the charging-session
-job.
+@skills:migrate-job charging-session
 ```
 
-The Playbook text itself is in `docs/build-plan.md`.
+The skill body lives at `.agents/skills/migrate-job/SKILL.md` in the demo repo.
 
 ## Objection script
 
@@ -119,14 +118,14 @@ Lead with the artefact, then the sentence. Never argue the general case.
 | # | Objection | Artefact | Sentence |
 |---|---|---|---|
 | 1 | "How do we trust a Rust rewrite is behaviourally identical?" | Harness output, `goldens/` generated from the Scala Job, the Drift branch | "The Goldens come from running your Job, not from a spec. The Harness compares per session key, with DLQ and a Downstream System check. The Drift branch shows two schema-valid, wrong ports being caught." |
-| 2 | "Devin will just edit the tests until they pass." | Knowledge entry (screen 6), live PR diff | "It is forbidden at the Knowledge level, instructed at the Playbook level, and visible in the diff. If it had touched Goldens the PR would show it." |
+| 2 | "Devin will just edit the tests until they pass." | `AGENTS.md` (screen 6), live PR diff, Gate path check | "Three layers. `AGENTS.md` is injected into every session and names the read-only paths. The skill repeats it. The Gate diffs the branch against those paths mechanically and goes red if any were touched. If it had edited Goldens, the PR and the Gate would both show it." |
 | 3 | "You didn't show it on Kafka. What about exactly-once?" | `processors/*/src/core.rs`, `docs/cutover.md` | "Ordering, dedup and timeout are properties of the core, and the core is tested deterministically, which a live broker cannot do. Transport, offsets and rebalances are the adapter and your pipeline, exercised by Job #1 already. Exactly-once here means Kafka-to-Kafka under transactional produce, and the doc says what that does and does not cover." |
 | 4 | "Our privacy team won't accept machine-generated evidence." | Evidence Pack on the PR, violation branch output | "It is not a decision, it is a dossier. Field-level inventory, lineage, Baseline diff, runtime scan, with the residual uncertainties listed. Your reviewer still signs. They just read 20 minutes instead of discovering for two weeks." |
-| 5 | "Our real Jobs are far messier than this." | DeepWiki (screen 9), Playbook escalation conditions | "Agreed. That is why the Playbook's first step is characterisation, not code, and why it has explicit stop conditions. Some Jobs will stop at step one with a findings doc, and that is still a week saved." |
+| 5 | "Our real Jobs are far messier than this." | DeepWiki (screen 9), skill stop conditions | "Agreed. That is why the skill's first step is characterisation, not code, and why it has explicit stop conditions. Some Jobs will stop at step one with a findings doc, and that is still a week saved." |
 | 6 | "Where does our code run? What does Devin see?" | none | Answer from Cognition's security material: deployment options, data retention, what is and is not used for training. Do not improvise. |
 | 7 | "What is the review burden on our senior engineers?" | PR size, Devin Review, Evidence Pack structure | "One PR per Job, confined to one Processor directory, with a second agent's review attached and a structured Evidence Pack. Review becomes reading, not archaeology." |
 | 8 | "How many Jobs per week? What does it cost?" | none | Be candid: it depends on Job complexity and how many stop at characterisation. Offer a pilot on two real Jobs as the way to find out. |
-| 9 | (unspoken) The stack is not exactly Rust-on-Kubernetes | none | "Nothing here is Rust-specific. The Gate, Manifests and Playbook are the method. The target language is a parameter." |
+| 9 | (unspoken) The stack is not exactly Rust-on-Kubernetes | none | "Nothing here is Rust-specific. The Gate, Manifests and the skill are the method. The target language is a parameter." |
 
 ## What this demo proves and does not prove
 
@@ -137,7 +136,7 @@ Proves:
 - Devin can port a stateful Job inside a Gate without touching the Gate's inputs.
 - Semantic Drift (schema-valid, wrong values) is caught, not just schema breaks.
 - A privacy-relevant change is detected from Manifest diff plus runtime scan, and reported in a form a reviewer can act on.
-- The same Playbook runs for the next Job.
+- The same skill runs for the next Job.
 
 Does not prove:
 - Production safety under load, rebalance, restart or broker failure.
@@ -152,7 +151,7 @@ Does not prove:
 |---|---|
 | Wi-Fi dies | Terminal only. `make gate` on `main` for ota-status (green), `drift/dedup-and-idle` (red), `violation/location-in-summary` (red), `demo/charging-session-migrated` (green). Narrate the sessions from memory. |
 | Live session slow | Screen 4. Say it is yesterday's run of the same prompt. |
-| Live session edits a forbidden path | It will not have, because of Knowledge, but if it does: show it, say "this is exactly what Devin Review and the Gate's path check are for", switch to screen 4. |
+| Live session edits a read-only path | It should not, because of `AGENTS.md`, but if it does: show it, say "this is exactly what Devin Review and the Gate's path check are for", switch to screen 4. |
 | Someone asks to see the Scala run | `make goldens JOB=charging-session` in the terminal. Takes about a minute in Spark local mode. Only if you smoke-tested it that morning. |
 | Someone asks to see Kafka | Only if the Redpanda compose was smoke-tested that morning. Otherwise objection 3. |
 
@@ -165,5 +164,5 @@ Does not prove:
 - [ ] Pre-run PR still open, Devin Review findings visible.
 - [ ] Backup live-prompt session (screen 4) opens and scrolls.
 - [ ] No stray `devin/*` branches or PRs from rehearsals.
-- [ ] Playbook text read end to end.
+- [ ] `.agents/skills/migrate-job/SKILL.md` and `AGENTS.md` read end to end.
 - [ ] Laptop on power, notifications off, terminal font large.
