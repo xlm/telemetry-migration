@@ -49,7 +49,7 @@ A behavioural difference between a Processor and its Job that the Harness detect
 _Avoid_: Bug, regression, incompatibility, mismatch
 
 **Gate**:
-The aggregate verdict over Harness, contract checks and privacy checks that decides whether a Migration may proceed to human review.
+The aggregate verdict over Harness, contract checks and privacy checks that decides whether a Migration may proceed to human review. The verdict that counts is the one recorded on the Migration's PR. A run anywhere else is a preview of it.
 _Avoid_: CI, pipeline, approval (approval is the human step after a green Gate)
 
 ## Data handling

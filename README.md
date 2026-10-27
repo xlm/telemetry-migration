@@ -181,6 +181,27 @@ make gate PROCESSOR=ota-status
 make gate PROCESSOR=charging-session BASE=origin/main BIN=processors/target/release/charging-session
 ```
 
+### Gate on PRs
+
+Every pull request runs the Gate in GitHub Actions
+(`.github/workflows/gate.yml`). The `Processors to Gate` job runs
+`gate-processors`, which lists the Processors the PR's changes can affect. A
+Processor's own crate or Processor Manifest selects that Processor. A Gate
+input, the `Makefile` or shared Rust selects every Processor. Anything else
+selects none. Each selected Processor gets a `Gate (<name>)` job that runs
+`make gate` on the PR head commit against the PR's base branch, shows the
+Evidence Pack on the job summary page, and uploads it with the raw Processor
+output as the `gate-<name>` artifact. The `Gate` check is green when every
+selected job is green or none was needed, and it is the verdict that counts
+for review. A push to `main` only builds the Processors, so later PRs start
+with a warm build cache.
+
+To see which Processors a branch would Gate:
+
+```sh
+uv run --project harness --python 3.12 gate-processors --base origin/main
+```
+
 ### Reading a red Gate
 
 Gate runs all six steps even after a failure, so the report includes Harness,
