@@ -13,3 +13,8 @@
 /schemas/ @xlm
 /Makefile @xlm
 /rust-toolchain.toml @xlm
+# The agent's rules. The Gate doesn't read them, but they say when a
+# Migration must stop.
+/AGENTS.md @xlm
+/CONTEXT.md @xlm
+/.agents/ @xlm
