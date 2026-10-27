@@ -1,0 +1,138 @@
+name: Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  processors:
+    name: Processors to Gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: harness/uv.lock
+      - id: list
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          list=$(uv run --project harness --python 3.12 gate-processors --base "origin/$BASE_REF")
+          printf 'list=%s\n' "$list" >> "$GITHUB_OUTPUT"
+          printf 'Processors to Gate: `%s`\n' "$list" >> "$GITHUB_STEP_SUMMARY"
+
+  gate:
+    name: Gate (${{ matrix.processor }})
+    needs: processors
+    if: needs.processors.outputs.list != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        processor: ${{ fromJSON(needs.processors.outputs.list) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: harness/uv.lock
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: processors -> target
+          shared-key: gate
+          save-if: false
+      - name: Run the Gate
+        env:
+          PROCESSOR: ${{ matrix.processor }}
+          BASE_REF: ${{ github.base_ref }}
+        run: make gate PROCESSOR="$PROCESSOR" BASE="origin/$BASE_REF"
+      - name: Show the Evidence Pack
+        id: pack
+        if: always()
+        env:
+          PROCESSOR: ${{ matrix.processor }}
+        run: |
+          pack="evidence/$PROCESSOR/$(git rev-parse --short HEAD)"
+          printf 'dir=%s\n' "$pack" >> "$GITHUB_OUTPUT"
+          {
+            committed=$(git ls-files "evidence/$PROCESSOR/*/evidence.md" | cut -d/ -f3 | sort -u)
+            if [ -n "$committed" ]; then
+              printf '> Head includes committed Evidence Pack: `%s`\n\n' $committed
+            fi
+            if [ -f "$pack/evidence.md" ]; then
+              cat "$pack/evidence.md"
+            else
+              printf 'No Evidence Pack was written to `%s`.\n' "$pack"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: gate-${{ matrix.processor }}
+          path: |
+            ${{ steps.pack.outputs.dir }}/
+            target/gate/${{ matrix.processor }}/
+          if-no-files-found: warn
+
+  verdict:
+    name: Gate
+    needs: [processors, gate]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - env:
+          PROCESSORS: ${{ needs.processors.result }}
+          GATE: ${{ needs.gate.result }}
+        run: |
+          printf 'Processors to Gate: %s\nGate jobs: %s\n' "$PROCESSORS" "$GATE"
+          [ "$PROCESSORS" = success ] && { [ "$GATE" = success ] || [ "$GATE" = skipped ]; }
+
+  warm-cache:
+    name: Warm the build cache
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: harness/uv.lock
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: processors -> target
+          shared-key: gate
+      - name: Build what the Gate builds
+        run: |
+          uv sync --project harness --python 3.12
+          for processor in $(uv run --project harness --python 3.12 python -c 'from harness.common import PROCESSORS; print(*sorted(PROCESSORS))'); do
+            cargo build --release --manifest-path processors/Cargo.toml -p "$processor"
+          done
