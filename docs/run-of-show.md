@@ -161,7 +161,7 @@ Does not prove:
 - [ ] `make doctor` prints `doctor: ok` on this laptop.
 - [ ] `git fetch`, every demo branch at its recorded SHA (see `docs/build-plan.md`, "Demo states").
 - [ ] `make gate PROCESSOR=ota-status` green on `main`.
-- [ ] `make gate PROCESSOR=charging-session` red on `drift/dedup-and-idle` on fixtures 04 and 09 only, every other step green.
+- [ ] `make gate PROCESSOR=charging-session` red on `drift/dedup-and-idle` on the Harness for fixtures 04 and 09 and on the Downstream System for fixture 09 only, every other step green.
 - [ ] `make gate PROCESSOR=charging-session` red on `violation/location-in-summary` on contract and privacy, both naming `end_location`.
 - [ ] Pre-run PR still open, Devin Review findings visible.
 - [ ] Backup live-prompt session (screen 4) opens and scrolls.
