@@ -200,9 +200,11 @@ Actions, Gate, Run workflow on `main`.
 
 The Gate runs the PR's own `harness/` and workflow, so a PR could weaken
 the Gate and still pass it. `.github/CODEOWNERS` covers every Gate input,
-the `Makefile` and `rust-toolchain.toml`. With "Require review from Code Owners" set on `main`,
-GitHub enforces that review from the base branch, where the PR can't
-change it.
+the `Makefile` and `rust-toolchain.toml`. It also covers the agent's rules
+(`AGENTS.md`, `CONTEXT.md`, `.agents/`). The Gate doesn't read those, but
+they hold the stop conditions a Migration must follow. With "Require review
+from Code Owners" set on `main`, GitHub enforces that review from the base
+branch, where the PR can't change it.
 
 To see which Processors a branch would Gate:
 
