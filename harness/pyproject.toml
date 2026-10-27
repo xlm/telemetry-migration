@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 gate = "harness.gate:main"
+gate-processors = "harness.ci:main"
 
 [dependency-groups]
 dev = [
