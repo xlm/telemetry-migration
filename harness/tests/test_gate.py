@@ -43,7 +43,7 @@ def test_evidence_reproduction_command_includes_bin_only_when_set(tmp_path):
     ]
     assert with_bin_command == "make gate PROCESSOR=ota-status BIN=harness/tests/fake_processor.py"
 
-    external_bin = tmp_path / "outside" / "ota-status"
+    external_bin = Path("/tmp/my dir/p")
     with_external_bin = write_evidence(
         "ota-status",
         "origin/main",
@@ -56,7 +56,7 @@ def test_evidence_reproduction_command_includes_bin_only_when_set(tmp_path):
     external_command = json.loads(external_evidence.read_text(encoding="utf-8"))["identity"][
         "reproduce_command"
     ]
-    assert external_command == f"make gate PROCESSOR=ota-status BIN={external_bin}"
+    assert external_command == "make gate PROCESSOR=ota-status BIN='/tmp/my dir/p'"
 
     without_bin = write_evidence(
         "ota-status",
@@ -70,6 +70,19 @@ def test_evidence_reproduction_command_includes_bin_only_when_set(tmp_path):
         "reproduce_command"
     ]
     assert without_bin_command == "make gate PROCESSOR=ota-status"
+
+    with_space_base = write_evidence(
+        "ota-status",
+        "feature branch",
+        [],
+        root=ROOT,
+        evidence_dir=tmp_path / "space-base",
+    )
+    with_space_base_evidence = Path(with_space_base.counts["path"]) / "evidence.json"
+    with_space_base_command = json.loads(with_space_base_evidence.read_text(encoding="utf-8"))[
+        "identity"
+    ]["reproduce_command"]
+    assert with_space_base_command == "make gate PROCESSOR=ota-status BASE='feature branch'"
 
 
 def test_report_flattens_multiline_findings(capsys, tmp_path):

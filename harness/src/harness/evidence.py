@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,9 +45,9 @@ def write_evidence(
     red_steps = [step.name for step in validation_steps if step.status == "red"]
     reproduce = f"make gate PROCESSOR={processor}"
     if base != "origin/main":
-        reproduce += f" BASE={base}"
+        reproduce += f" BASE={shlex.quote(base)}"
     if bin_path is not None:
-        reproduce += f" BIN={_repo_relative_path(bin_path, root)}"
+        reproduce += f" BIN={shlex.quote(_repo_relative_path(bin_path, root))}"
     inventory = _inventory(manifest)
     evidence = {
         "identity": {
