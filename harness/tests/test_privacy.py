@@ -341,6 +341,24 @@ def test_runtime_detects_location_and_raw_vehicle_id_in_logs(tmp_path):
     assert not any(item["check"] == "runtime" for item in hashed_result.findings)
 
 
+def test_runtime_findings_use_safe_locators_for_raw_vehicle_id_leaks(tmp_path):
+    event = _event()
+    result = _runtime(
+        tmp_path,
+        [event],
+        [{"unapproved": event["vehicle_id"]}],
+        [f"vehicle={event['vehicle_id']}"],
+    )
+
+    runtime_findings = [item for item in result.findings if item["check"] == "runtime"]
+    raw_log_finding = next(
+        item for item in runtime_findings if item["type"] == "raw-vehicle-id-in-log"
+    )
+    assert raw_log_finding["example"] == "01-sample:1"
+    assert all(item["example"] == "01-sample:1" for item in runtime_findings)
+    assert event["vehicle_id"] not in json.dumps(runtime_findings)
+
+
 def test_processor_stderr_is_scanned_as_a_runtime_log(tmp_path):
     raw_vehicle_id = "VH-raw-console-test"
     fixture_dir = tmp_path / "fixtures" / "ota-status"

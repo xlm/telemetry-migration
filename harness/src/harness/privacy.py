@@ -325,7 +325,8 @@ def _scan_runtime(
                 field.get("classification") == "sensitive-location" for field in declared.values()
             )
             records, _ = read_jsonl(output_path)
-            for record in records:
+            for record_number, record in enumerate(records, start=1):
+                locator = f"{fixture.stem}:{record_number}"
                 for field, value in record.items():
                     if field not in declared:
                         _aggregate(
@@ -334,7 +335,7 @@ def _scan_runtime(
                             topic,
                             field,
                             fixture.stem,
-                            value,
+                            locator,
                             f"field {field}, not declared on topic {topic}",
                         )
                     if _contains_location(value, locations, coordinates) and (
@@ -359,7 +360,7 @@ def _scan_runtime(
                             topic,
                             field,
                             fixture.stem,
-                            value,
+                            locator,
                             message,
                         )
 
@@ -428,7 +429,7 @@ def _aggregate(
     topic: str,
     field: str,
     fixture: str,
-    example,
+    locator: str,
     message: str,
 ) -> None:
     key = (finding_type, topic, field)
@@ -436,7 +437,7 @@ def _aggregate(
         aggregated[key] = {
             "count": 0,
             "fixture": fixture,
-            "example": example,
+            "example": locator,
             "message": message,
         }
     aggregated[key]["count"] += 1
