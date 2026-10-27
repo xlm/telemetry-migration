@@ -69,6 +69,7 @@ jobs:
         env:
           PROCESSOR: ${{ matrix.processor }}
           BASE_REF: ${{ github.base_ref }}
+        shell: bash
         run: make gate PROCESSOR="$PROCESSOR" BASE="origin/$BASE_REF" | tee "$RUNNER_TEMP/gate.log"
       - name: Show the Evidence Pack
         id: pack
@@ -132,23 +133,24 @@ jobs:
         run: |
           green=false
           [ "$PROCESSORS" = success ] && { [ "$GATE" = success ] || [ "$GATE" = skipped ]; } && green=true
+          if [ "$PROCESSORS" != success ]; then
+            body='`1. Select Processors` failed, so no Processor was gated.'
+          elif [ "$LIST" = '[]' ]; then
+            body='No Processor needed a Gate.'
+          else
+            body=$'| Processor | Result |\n| --- | --- |'
+            for processor in $(jq -r '.[]' <<<"$LIST"); do
+              result=$(cat "results/$processor.txt" 2>/dev/null || echo 'No result: the job did not finish')
+              [ "$result" = 'Gate: GREEN' ] || green=false
+              body+=$'\n'"| $processor | ${result#Gate: } |"
+            done
+          fi
           {
             if $green; then echo '## Gate verdict: GREEN'; else echo '## Gate verdict: RED'; fi
             echo
             echo 'This is the check `main` requires. It is green when the Gate is green for every selected Processor, or when the PR changes nothing the Gate reads.'
             echo
-            if [ "$PROCESSORS" != success ]; then
-              echo '`1. Select Processors` failed, so no Processor was gated.'
-            elif [ "$LIST" = '[]' ]; then
-              echo 'No Processor needed a Gate.'
-            else
-              echo '| Processor | Result |'
-              echo '| --- | --- |'
-              for processor in $(jq -r '.[]' <<<"$LIST"); do
-                result=$(cat "results/$processor.txt" 2>/dev/null || echo 'No result: the job did not finish')
-                printf '| %s | %s |\n' "$processor" "${result#Gate: }"
-              done
-            fi
+            printf '%s\n' "$body"
           } > "$RUNNER_TEMP/verdict.md"
           tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/verdict.md"
           $green
