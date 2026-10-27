@@ -1,0 +1,309 @@
+{
+  "change_assessment": [],
+  "disposition": {
+    "gate_verdict": "green",
+    "privacy": "no-material-change",
+    "privacy_label": "no material change",
+    "red_steps": []
+  },
+  "identity": {
+    "base": "origin/main",
+    "baseline_manifest_version": 1,
+    "processor": "ota-status",
+    "processor_manifest_version": 1,
+    "reproduce_command": "make gate PROCESSOR=ota-status",
+    "sha": "20ea3d6e8a1c2afc4afda942b871fef38afa7210",
+    "short_sha": "20ea3d6",
+    "timestamp_utc": "2026-10-27T13:12:01.925716Z",
+    "worktree_dirty": false
+  },
+  "inventory": {
+    "inputs": [
+      {
+        "fields": [
+          {
+            "classification": "internal-operational",
+            "name": "event_id",
+            "purpose": "status-projection"
+          },
+          {
+            "classification": "vehicle-identifying",
+            "name": "vehicle_id",
+            "purpose": "status-projection"
+          },
+          {
+            "classification": "internal-operational",
+            "name": "campaign_id",
+            "purpose": "status-projection"
+          },
+          {
+            "classification": "internal-operational",
+            "name": "status",
+            "purpose": "status-normalization"
+          },
+          {
+            "classification": "internal-operational",
+            "name": "progress_pct",
+            "purpose": "progress-clamping"
+          },
+          {
+            "classification": "internal-operational",
+            "name": "event_ts",
+            "purpose": "status-projection"
+          },
+          {
+            "classification": "public",
+            "name": "schema_version",
+            "purpose": "contract-version"
+          }
+        ],
+        "topic": "vehicle.ota.events"
+      }
+    ],
+    "logging": {
+      "forbidden": [
+        "location"
+      ],
+      "hashed": [
+        "vehicle_id"
+      ]
+    },
+    "outputs": [
+      {
+        "downstream": [
+          "ota"
+        ],
+        "fields": [
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "event_id"
+            ],
+            "name": "event_id"
+          },
+          {
+            "classification": "vehicle-identifying",
+            "derived_from": [
+              "vehicle_id"
+            ],
+            "name": "vehicle_id"
+          },
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "campaign_id"
+            ],
+            "name": "campaign_id"
+          },
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "status"
+            ],
+            "name": "status"
+          },
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "progress_pct"
+            ],
+            "name": "progress_pct"
+          },
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "event_ts"
+            ],
+            "name": "event_ts"
+          },
+          {
+            "classification": "public",
+            "derived_from": [
+              "schema_version"
+            ],
+            "name": "schema_version"
+          }
+        ],
+        "topic": "vehicle.ota.status"
+      },
+      {
+        "downstream": [
+          "ops"
+        ],
+        "fields": [
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "event_id"
+            ],
+            "name": "event_id"
+          },
+          {
+            "classification": "vehicle-identifying",
+            "derived_from": [
+              "vehicle_id"
+            ],
+            "name": "vehicle_id"
+          },
+          {
+            "classification": "internal-operational",
+            "derived_from": [
+              "status"
+            ],
+            "name": "reason"
+          }
+        ],
+        "topic": "vehicle.ota.dlq"
+      }
+    ],
+    "retention_days": 30
+  },
+  "residual_uncertainties": [
+    "Fixture coverage: equivalence is shown only on the committed fixtures. Rules or inputs no fixture exercises are unverified.",
+    "The runtime scan is value-based, not flow-based. It catches fixture values copied into outputs or logs, not transformed or derived leakage.",
+    "No broker semantics are tested. Ordering across partitions, redelivery, consumer group offsets, and idempotent production are outside the Harness."
+  ],
+  "validation": [
+    {
+      "counts": {
+        "fixture_counts": [
+          {
+            "candidate": 4,
+            "changed": 0,
+            "dlq_candidate": 0,
+            "dlq_diff": {
+              "extra": [],
+              "missing": []
+            },
+            "dlq_extra": 0,
+            "dlq_golden": 0,
+            "dlq_missing": 0,
+            "duplicate": 0,
+            "exit_code": 0,
+            "extra": 0,
+            "findings": [],
+            "fixture": "01-normal",
+            "golden": 4,
+            "identical": 4,
+            "missing": 0,
+            "record_diff": {
+              "changed": [],
+              "duplicate": [],
+              "extra": [],
+              "identical": 4,
+              "missing": []
+            },
+            "status": "green"
+          },
+          {
+            "candidate": 10,
+            "changed": 0,
+            "dlq_candidate": 0,
+            "dlq_diff": {
+              "extra": [],
+              "missing": []
+            },
+            "dlq_extra": 0,
+            "dlq_golden": 0,
+            "dlq_missing": 0,
+            "duplicate": 0,
+            "exit_code": 0,
+            "extra": 0,
+            "findings": [],
+            "fixture": "02-variant-status-strings",
+            "golden": 10,
+            "identical": 10,
+            "missing": 0,
+            "record_diff": {
+              "changed": [],
+              "duplicate": [],
+              "extra": [],
+              "identical": 10,
+              "missing": []
+            },
+            "status": "green"
+          },
+          {
+            "candidate": 0,
+            "changed": 0,
+            "dlq_candidate": 4,
+            "dlq_diff": {
+              "extra": [],
+              "missing": []
+            },
+            "dlq_extra": 0,
+            "dlq_golden": 4,
+            "dlq_missing": 0,
+            "duplicate": 0,
+            "exit_code": 0,
+            "extra": 0,
+            "findings": [],
+            "fixture": "03-malformed",
+            "golden": 0,
+            "identical": 0,
+            "missing": 0,
+            "record_diff": {
+              "changed": [],
+              "duplicate": [],
+              "extra": [],
+              "identical": 0,
+              "missing": []
+            },
+            "status": "green"
+          }
+        ],
+        "fixtures": 3,
+        "identical": 14,
+        "with_drift": 0
+      },
+      "findings": [],
+      "name": "Harness",
+      "status": "green",
+      "summary": "3 fixtures, 14 identical records, 0 with Drift"
+    },
+    {
+      "counts": {
+        "records": 14,
+        "schema_failures": 0,
+        "semantic_failures": 0
+      },
+      "findings": [],
+      "name": "Contract",
+      "status": "green",
+      "summary": "14 records, 0 schema failures, 0 semantic failures"
+    },
+    {
+      "counts": {
+        "identical_flags": 0,
+        "sessions": 0
+      },
+      "findings": [],
+      "name": "Downstream System",
+      "status": "skipped",
+      "summary": "no Downstream System script for this Processor's output (downstream: ota)"
+    },
+    {
+      "counts": {
+        "disposition": "no-material-change",
+        "findings": 0,
+        "label": "no material change",
+        "manifest_findings": 0,
+        "runtime_findings": 0
+      },
+      "findings": [],
+      "name": "Privacy",
+      "status": "green",
+      "summary": "disposition no-material-change, 0 findings"
+    },
+    {
+      "counts": {
+        "base": "origin/main",
+        "protected_paths": 0
+      },
+      "findings": [],
+      "name": "Path check",
+      "status": "green",
+      "summary": "0 protected paths touched (base origin/main)"
+    }
+  ]
+}
