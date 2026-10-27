@@ -1,4 +1,4 @@
-{"event_id":"48a41e6c-1df5-4c7c-8417-c6f84abefc2b","reason":"UNKNOWN_STATUS","vehicle_id":"VH-b10d366a"}
-{"event_id":null,"reason":"MISSING_FIELD","vehicle_id":"VH-08b278ee"}
-{"event_id":"8511e3c4-4158-45ca-8fc7-c07fa05d10b3","reason":"MISSING_FIELD","vehicle_id":"VH-d392b4c5"}
-{"event_id":"2c04b045-a9fb-44bc-b9fa-c0984143dfbe","reason":"MISSING_FIELD","vehicle_id":null}
+{"event_id":null,"vehicle_id":"VH-08b278ee","reason":"MISSING_FIELD"}
+{"event_id":"2c04b045-a9fb-44bc-b9fa-c0984143dfbe","vehicle_id":null,"reason":"MISSING_FIELD"}
+{"event_id":"48a41e6c-1df5-4c7c-8417-c6f84abefc2b","vehicle_id":"VH-b10d366a","reason":"UNKNOWN_STATUS"}
+{"event_id":"8511e3c4-4158-45ca-8fc7-c07fa05d10b3","vehicle_id":"VH-d392b4c5","reason":"MISSING_FIELD"}
