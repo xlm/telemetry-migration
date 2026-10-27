@@ -196,6 +196,12 @@ selected job is green or none was needed, and it is the verdict that counts
 for review. A push to `main` only builds the Processors, so later PRs start
 with a warm build cache.
 
+The Gate runs the PR's own `harness/` and workflow, so a PR could weaken
+the Gate and still pass it. `.github/CODEOWNERS` covers every Gate input
+and the `Makefile`. With "Require review from Code Owners" set on `main`,
+GitHub enforces that review from the base branch, where the PR can't
+change it.
+
 To see which Processors a branch would Gate:
 
 ```sh

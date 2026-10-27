@@ -3,6 +3,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from harness.ci import GATE_DEFINITION_PATHS
 from harness.common import ROOT, StepResult
 from harness.evidence import write_evidence
 from harness.gate import PROTECTED_PATHS, check_paths, path_is_protected, print_report, run_gate
@@ -175,6 +176,12 @@ def test_protected_path_rules_match_agent_and_build_plan_lists():
         list_text = section.group(1).split("must not touch", 1)[1].split(" Base is ", 1)[0]
         plan_rules = set(re.findall(r"`([^`]+)`", list_text))
         assert set(PROTECTED_PATHS) == plan_rules
+
+
+def test_codeowners_cover_every_gate_input_and_definition():
+    lines = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8").splitlines()
+    owned = {line.split()[0] for line in lines if line.strip() and not line.startswith("#")}
+    assert owned == {f"/{path}" for path in (*PROTECTED_PATHS, *GATE_DEFINITION_PATHS)}
 
 
 def _git(root: Path, *arguments: str):

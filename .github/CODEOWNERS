@@ -1,0 +1,14 @@
+# The Gate runs from the PR's own tree, so it can't guard its inputs.
+# GitHub reads this file from the base branch and requires these
+# owners' review for any change to them.
+/goldens/ @xlm
+/fixtures/ @xlm
+/manifests/*.job.yaml @xlm
+/manifests/classification.yaml @xlm
+/harness/ @xlm
+/contracts/ @xlm
+/jobs/ @xlm
+/downstream/ @xlm
+/.github/ @xlm
+/schemas/ @xlm
+/Makefile @xlm
