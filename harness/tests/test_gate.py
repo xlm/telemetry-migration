@@ -241,6 +241,63 @@ def test_path_check_allows_processors_only_changes_and_reports_bad_base(tmp_path
     assert bad_base.findings[0]["type"] == "git-failed"
 
 
+def test_path_check_reports_the_source_of_a_committed_move(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git_repo(root)
+    fixture = root / "fixtures" / "09-idle-timeout.jsonl"
+    fixture.parent.mkdir()
+    fixture.write_text("{}\n", encoding="utf-8")
+    _commit(root, "add fixture", "fixtures/09-idle-timeout.jsonl")
+    _git(root, "branch", "-f", "main")
+    (root / "moved").mkdir()
+    _git(root, "mv", "fixtures/09-idle-timeout.jsonl", "moved/09-idle-timeout.jsonl")
+    _commit(root, "move fixture", "-A")
+
+    result = check_paths("main", root=root)
+
+    assert result.status == "red"
+    assert [finding["path"] for finding in result.findings] == ["fixtures/09-idle-timeout.jsonl"]
+
+
+def test_path_check_reports_the_source_of_a_staged_move(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git_repo(root)
+    golden = root / "goldens" / "a.jsonl"
+    golden.parent.mkdir()
+    golden.write_text("{}\n", encoding="utf-8")
+    _commit(root, "add golden", "goldens/a.jsonl")
+    _git(root, "branch", "-f", "main")
+    _git(root, "mv", "goldens/a.jsonl", "a.jsonl")
+
+    result = check_paths("main", root=root)
+
+    assert result.status == "red"
+    assert [finding["path"] for finding in result.findings] == ["goldens/a.jsonl"]
+
+
+def test_path_check_matches_non_ascii_committed_and_untracked_paths(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git_repo(root)
+    committed = root / "goldens" / "café.jsonl"
+    committed.parent.mkdir()
+    committed.write_text("{}\n", encoding="utf-8")
+    _commit(root, "add golden", "goldens/café.jsonl")
+    untracked = root / "harness" / "naïve\nname.py"
+    untracked.parent.mkdir()
+    untracked.write_text("pass\n", encoding="utf-8")
+
+    result = check_paths("main", root=root)
+
+    assert result.status == "red"
+    assert [finding["path"] for finding in result.findings] == [
+        "goldens/café.jsonl",
+        "harness/naïve\nname.py",
+    ]
+
+
 def _generate_goldens(goldens_dir: Path):
     fixture_dir = ROOT / "fixtures" / "ota-status"
     output_dir = goldens_dir / "ota-status"

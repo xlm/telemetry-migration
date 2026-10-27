@@ -44,9 +44,9 @@ def path_is_protected(path: str, rules: tuple[str, ...] = PROTECTED_PATHS) -> li
 def check_paths(base: str = "origin/main", *, root: Path = ROOT) -> StepResult:
     changed_paths = set()
     commands = (
-        ["diff", "--name-only", f"{base}...HEAD"],
-        ["diff", "--name-only", "HEAD"],
-        ["ls-files", "--others", "--exclude-standard"],
+        ["diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"],
+        ["diff", "--name-only", "--no-renames", "-z", "HEAD"],
+        ["ls-files", "--others", "--exclude-standard", "-z"],
     )
     for arguments in commands:
         try:
@@ -80,7 +80,7 @@ def check_paths(base: str = "origin/main", *, root: Path = ROOT) -> StepResult:
                     }
                 ],
             )
-        changed_paths.update(line for line in result.stdout.splitlines() if line)
+        changed_paths.update(path for path in result.stdout.split("\0") if path)
 
     findings = []
     for path in sorted(changed_paths):
