@@ -110,8 +110,8 @@ def compare_dlq(golden: list[dict], processor: list[dict]) -> dict:
         }
         return [
             {
-                "event_id": examples[pair]["event_id"],
-                "reason": examples[pair]["reason"],
+                "event_id": examples[pair].get("event_id"),
+                "reason": examples[pair].get("reason"),
                 "count": count,
             }
             for pair, count in counts.items()
