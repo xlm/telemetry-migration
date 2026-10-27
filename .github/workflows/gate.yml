@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   processors:
-    name: Processors to Gate
+    name: 1. Select Processors
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -37,10 +37,10 @@ jobs:
         run: |
           list=$(uv run --project harness --python 3.12 gate-processors --base "origin/$BASE_REF")
           printf 'list=%s\n' "$list" >> "$GITHUB_OUTPUT"
-          printf 'Processors to Gate: `%s`\n' "$list" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Selected Processors: `%s`\n' "$list" >> "$GITHUB_STEP_SUMMARY"
 
   gate:
-    name: Gate (${{ matrix.processor }})
+    name: "2. Gate: ${{ matrix.processor }}"
     needs: processors
     if: needs.processors.outputs.list != '[]'
     runs-on: ubuntu-latest
@@ -69,7 +69,7 @@ jobs:
         env:
           PROCESSOR: ${{ matrix.processor }}
           BASE_REF: ${{ github.base_ref }}
-        run: make gate PROCESSOR="$PROCESSOR" BASE="origin/$BASE_REF"
+        run: make gate PROCESSOR="$PROCESSOR" BASE="origin/$BASE_REF" | tee "$RUNNER_TEMP/gate.log"
       - name: Show the Evidence Pack
         id: pack
         if: always()
@@ -97,23 +97,64 @@ jobs:
             ${{ steps.pack.outputs.dir }}/
             target/gate/${{ matrix.processor }}/
           if-no-files-found: warn
+      - name: Record the result
+        if: always()
+        env:
+          PROCESSOR: ${{ matrix.processor }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          line=$(grep -E '^Gate: (GREEN|RED)' "$RUNNER_TEMP/gate.log" | tail -n 1 || true)
+          printf '%s\n' "${line:-No Gate report: infrastructure failure}" > "$RUNNER_TEMP/result/$PROCESSOR.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: result-${{ matrix.processor }}
+          path: ${{ runner.temp }}/result/
 
   verdict:
-    name: Gate
+    name: 3. Gate verdict
     needs: [processors, gate]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.gate.result != 'skipped'
+        continue-on-error: true
+        with:
+          pattern: result-*
+          merge-multiple: true
+          path: results
       - env:
           PROCESSORS: ${{ needs.processors.result }}
           GATE: ${{ needs.gate.result }}
+          LIST: ${{ needs.processors.outputs.list }}
         run: |
-          printf 'Processors to Gate: %s\nGate jobs: %s\n' "$PROCESSORS" "$GATE"
-          [ "$PROCESSORS" = success ] && { [ "$GATE" = success ] || [ "$GATE" = skipped ]; }
+          green=false
+          [ "$PROCESSORS" = success ] && { [ "$GATE" = success ] || [ "$GATE" = skipped ]; } && green=true
+          {
+            if $green; then echo '## Gate verdict: GREEN'; else echo '## Gate verdict: RED'; fi
+            echo
+            echo 'This is the check `main` requires. It is green when the Gate is green for every selected Processor, or when the PR changes nothing the Gate reads.'
+            echo
+            if [ "$PROCESSORS" != success ]; then
+              echo '`1. Select Processors` failed, so no Processor was gated.'
+            elif [ "$LIST" = '[]' ]; then
+              echo 'No Processor needed a Gate.'
+            else
+              echo '| Processor | Result |'
+              echo '| --- | --- |'
+              for processor in $(jq -r '.[]' <<<"$LIST"); do
+                result=$(cat "results/$processor.txt" 2>/dev/null || echo 'No result: the job did not finish')
+                printf '| %s | %s |\n' "$processor" "${result#Gate: }"
+              done
+            fi
+          } > "$RUNNER_TEMP/verdict.md"
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/verdict.md"
+          $green
 
   warm-cache:
-    name: Warm the build cache
+    name: Warm the build cache (main only)
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20

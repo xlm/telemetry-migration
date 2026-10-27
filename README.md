@@ -184,16 +184,22 @@ make gate PROCESSOR=charging-session BASE=origin/main BIN=processors/target/rele
 ### Gate on PRs
 
 Every pull request runs the Gate in GitHub Actions
-(`.github/workflows/gate.yml`). The `Processors to Gate` job runs
-`gate-processors`, which lists the Processors the PR's changes can affect. A
-Processor's own crate or Processor Manifest selects that Processor. A Gate
-input, the `Makefile`, `rust-toolchain.toml` or shared Rust selects every
-Processor. Anything else selects none. Each selected Processor gets a
-`Gate (<name>)` job that runs `make gate` on the PR head commit against the
-PR's base branch, shows the Evidence Pack on the job summary page, and uploads
-it with the raw Processor output as the `gate-<name>` artifact. The `Gate`
-check is green when every selected job is green or none was needed, and it is
-the verdict that counts for review. A push to `main` only builds the
+(`.github/workflows/gate.yml`), in three numbered jobs:
+
+1. `1. Select Processors` runs `gate-processors`, which lists the Processors
+   the PR's changes can affect. A Processor's own crate or Processor Manifest
+   selects that Processor. A Gate input, the `Makefile`, `rust-toolchain.toml`
+   or shared Rust selects every Processor. Anything else selects none.
+2. `2. Gate: <name>`, one per selected Processor, runs `make gate` on the PR
+   head commit against the PR's base branch. It shows the Evidence Pack on the
+   job summary page and uploads it with the raw Processor output as the
+   `gate-<name>` artifact.
+3. `3. Gate verdict` is green when every selected Processor's Gate is green or
+   none was needed. Its summary page lists each Processor's result. It is the
+   one check `main` requires, because the number of `2. Gate` jobs changes
+   from PR to PR.
+
+A push to `main` only builds the
 Processors, so later PRs start with a warm build cache. The cache is keyed on
 the Rust version, so after bumping `rust-toolchain.toml`, warm it by hand:
 Actions, Gate, Run workflow on `main`.

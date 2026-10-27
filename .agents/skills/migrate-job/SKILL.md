@@ -50,7 +50,7 @@ When the Gate is green, open a PR against `main`. The description must contain, 
 
 ## 7. Gate check
 
-Wait for the `Gate` check on the PR. It reruns the Gate in GitHub Actions on the PR head commit, and it is the verdict that counts. If it is red, read the log of each red `Gate (<name>)` job:
+Wait for the `3. Gate verdict` check on the PR. It sums up the Gate rerun in GitHub Actions on the PR head commit, and it is the verdict that counts. If it is red, read the log of each red `2. Gate: <name>` job:
 
 - The log contains a Gate report (a `Gate: RED - <steps>` line, followed by the later workflow steps): treat every finding as in step 5. Find what the Scala does, fix the Rust, push, and wait for the check again.
 - The log has no Gate report (runner fault, failed download, timeout, cancelled run): it is an infrastructure failure, not a fix attempt. Re-run the failed jobs once. If the re-run also has no Gate report, or you can't re-run, report it.
@@ -63,11 +63,11 @@ Report instead of continuing when:
 
 - step 2 finds undeclared data handling
 - a rule in the Scala cannot be determined from the code
-- the Gate is still red after three fix attempts on the same Drift, counting local runs and the `Gate` check together
+- the Gate is still red after three fix attempts on the same Drift, counting local runs and the `3. Gate verdict` check together
 - any fix would require editing a read-only path
 
 ## Acceptance
 
-- `Gate` check green on the PR.
+- `3. Gate verdict` check green on the PR.
 - Diff confined to `processors/$1/` and `manifests/$1.processor.yaml`.
 - PR description structured as in step 6.
