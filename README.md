@@ -109,10 +109,13 @@ dependency group contains pytest and Ruff. Setuptools is the package build
 backend. `uv sync` creates the project-local `harness/.venv`; no manually
 managed or global virtual environment is needed, and Make targets use `uv run`.
 
-The Scala build uses the JDK 17 `--add-opens` options required by Spark. The
-first sbt run downloads Spark and Scala dependencies and may take several
-minutes. Homebrew and Rust provide native Apple Silicon tools on Apple Silicon
-Macs. Official references: [Homebrew](https://brew.sh/),
+The Scala build uses the JDK 17 `--add-opens` options required by Spark. Those
+flags live in `jobs/build.sbt`, so there is nothing to add by hand. Makefile
+targets set `SPARK_LOCAL_IP=127.0.0.1` for Spark commands, so the export above
+is optional when using them. In one clean-cache measurement, sbt fetched about
+243 MB and took 27 seconds here. First-run times vary by network. Homebrew and
+Rust provide native Apple Silicon tools on Apple Silicon Macs. Official
+references: [Homebrew](https://brew.sh/),
 [OpenJDK 17](https://formulae.brew.sh/formula/openjdk@17),
 [sbt](https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Mac.html),
 [uv](https://docs.astral.sh/uv/getting-started/installation/),
@@ -147,8 +150,12 @@ make goldens JOB=ota-status
 make gate PROCESSOR=ota-status
 ```
 
-`make goldens` still exits with status 1 and a not-implemented message until
-the Scala Jobs land.
+`make goldens JOB=ota-status` and `make goldens JOB=charging-session` run the
+Job over every `.jsonl` file in `fixtures/<job>/` and rewrite
+`goldens/<job>/`. The generated files are byte-identical across runs when the
+code and fixtures are unchanged. Never edit Goldens by hand. With dependencies
+cached, the runs took 15 seconds for ota-status and 20 seconds for
+charging-session here. First runs may take longer.
 
 Run Gate for one Processor. `BASE` changes the comparison base for the Path
 check, and `BIN` supplies a Processor binary and skips the Cargo build:
