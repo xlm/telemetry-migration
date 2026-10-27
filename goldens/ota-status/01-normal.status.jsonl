@@ -1,0 +1,4 @@
+{"campaign_id":"OTA-00000000","event_id":"bb0fda7d-2a21-4064-a0be-f733bf1eb5b8","event_ts":1792972800000,"progress_pct":0.0,"schema_version":"1","status":"DOWNLOADING","vehicle_id":"VH-2f04fedb"}
+{"campaign_id":"OTA-00000001","event_id":"e7723224-cb8d-4a2f-8909-3a2124362ac5","event_ts":1792972860000,"progress_pct":25.0,"schema_version":"1","status":"INSTALLING","vehicle_id":"VH-112efacc"}
+{"campaign_id":"OTA-00000000","event_id":"5a2096c8-f981-4e68-b25d-494b77179505","event_ts":1792972920000,"progress_pct":50.0,"schema_version":"1","status":"SUCCEEDED","vehicle_id":"VH-6a54de55"}
+{"campaign_id":"OTA-00000001","event_id":"6fae5fb5-bdde-406f-b945-3209b8ea0963","event_ts":1792972980000,"progress_pct":75.0,"schema_version":"1","status":"FAILED","vehicle_id":"VH-41d71b54"}
