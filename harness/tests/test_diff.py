@@ -94,3 +94,15 @@ def test_dlq_multiset_counts_duplicate_pairs_and_distinct_reasons():
     )
     assert result["missing"] == [{"event_id": "same", "reason": "BAD", "count": 1}]
     assert result["extra"] == [{"event_id": None, "reason": "NEW", "count": 1}]
+
+
+def test_dlq_missing_pair_fields_are_reported_as_null():
+    result = compare_dlq(
+        [],
+        [{"event_id": "missing-reason"}, {"reason": "missing-event-id"}],
+    )
+
+    assert result["extra"] == [
+        {"event_id": "missing-reason", "reason": None, "count": 1},
+        {"event_id": None, "reason": "missing-event-id", "count": 1},
+    ]
