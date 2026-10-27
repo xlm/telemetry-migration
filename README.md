@@ -4,8 +4,6 @@ This repository demonstrates replacing legacy Scala/Spark Jobs with pure-core Ru
 
 ## Local setup (macOS)
 
-macOS path not yet verified on a Mac
-
 Homebrew is the only preinstalled package manager assumed here. Rust also
 requires Apple's Command Line Tools.
 
@@ -130,7 +128,6 @@ compiler toolchain. Other supported Linux package managers are dnf, yum, and
 pacman.
 
 sbt falls back to Google's Maven Central mirror if Maven Central rate-limits.
-The macOS setup path still needs a human Mac run.
 
 ## Running
 
