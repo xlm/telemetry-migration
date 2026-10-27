@@ -1,8 +1,10 @@
+import json
 import re
 import subprocess
 from pathlib import Path
 
 from harness.common import ROOT, StepResult
+from harness.evidence import write_evidence
 from harness.gate import PROTECTED_PATHS, check_paths, path_is_protected, print_report, run_gate
 
 FAKE_PROCESSOR = ROOT / "harness" / "tests" / "fake_processor.py"
@@ -24,6 +26,50 @@ def test_protected_path_matching_includes_exact_rules_and_near_misses():
     }
     for path, expected in cases.items():
         assert bool(path_is_protected(path)) is expected
+
+
+def test_evidence_reproduction_command_includes_bin_only_when_set(tmp_path):
+    with_bin = write_evidence(
+        "ota-status",
+        "origin/main",
+        [],
+        root=ROOT,
+        evidence_dir=tmp_path / "with-bin",
+        bin_path=FAKE_PROCESSOR,
+    )
+    with_bin_evidence = Path(with_bin.counts["path"]) / "evidence.json"
+    with_bin_command = json.loads(with_bin_evidence.read_text(encoding="utf-8"))["identity"][
+        "reproduce_command"
+    ]
+    assert with_bin_command == "make gate PROCESSOR=ota-status BIN=harness/tests/fake_processor.py"
+
+    external_bin = tmp_path / "outside" / "ota-status"
+    with_external_bin = write_evidence(
+        "ota-status",
+        "origin/main",
+        [],
+        root=ROOT,
+        evidence_dir=tmp_path / "external-bin",
+        bin_path=external_bin,
+    )
+    external_evidence = Path(with_external_bin.counts["path"]) / "evidence.json"
+    external_command = json.loads(external_evidence.read_text(encoding="utf-8"))["identity"][
+        "reproduce_command"
+    ]
+    assert external_command == f"make gate PROCESSOR=ota-status BIN={external_bin}"
+
+    without_bin = write_evidence(
+        "ota-status",
+        "origin/main",
+        [],
+        root=ROOT,
+        evidence_dir=tmp_path / "without-bin",
+    )
+    without_bin_evidence = Path(without_bin.counts["path"]) / "evidence.json"
+    without_bin_command = json.loads(without_bin_evidence.read_text(encoding="utf-8"))["identity"][
+        "reproduce_command"
+    ]
+    assert without_bin_command == "make gate PROCESSOR=ota-status"
 
 
 def test_report_flattens_multiline_findings(capsys, tmp_path):
@@ -243,6 +289,10 @@ def test_gate_runs_all_six_steps_and_writes_evidence_after_harness_drift(tmp_pat
     assert markdown.is_file()
     markdown_lines = markdown.read_text(encoding="utf-8").splitlines()
     assert len(markdown_lines) < 150
+    evidence = json.loads((evidence_path / "evidence.json").read_text(encoding="utf-8"))
+    assert evidence["identity"]["reproduce_command"] == (
+        "make gate PROCESSOR=ota-status BASE=HEAD BIN=harness/tests/fake_processor.py"
+    )
     assert all(
         index == 0 or markdown_lines[index - 1] == ""
         for index, line in enumerate(markdown_lines)

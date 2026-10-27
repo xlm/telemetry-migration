@@ -164,6 +164,7 @@ def run_gate(
                 results,
                 root=root,
                 evidence_dir=evidence_dir,
+                bin_path=bin_path,
             )
         )
     except Exception as error:  # noqa: BLE001
