@@ -326,7 +326,7 @@ def _scan_runtime(
             )
             records, _ = read_jsonl(output_path)
             for record_number, record in enumerate(records, start=1):
-                locator = f"{fixture.stem}:{record_number}"
+                locator = f"{output_path.name}:{record_number}"
                 for field, value in record.items():
                     if field not in declared:
                         _aggregate(
@@ -377,7 +377,7 @@ def _scan_runtime(
             except OSError:
                 continue
             for line_number, line in enumerate(log_lines, start=1):
-                locator = f"{fixture.stem}:{line_number}"
+                locator = f"{log_path.name}:{line_number}"
                 location_leak = any(
                     form in line
                     for location in locations
