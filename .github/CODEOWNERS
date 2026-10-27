@@ -12,3 +12,4 @@
 /.github/ @xlm
 /schemas/ @xlm
 /Makefile @xlm
+/rust-toolchain.toml @xlm

@@ -12,7 +12,7 @@ import click
 from harness.common import PROCESSORS, ROOT
 from harness.gate import path_is_protected
 
-GATE_DEFINITION_PATHS = ("Makefile",)
+GATE_DEFINITION_PATHS = ("Makefile", "rust-toolchain.toml")
 
 
 def processors_to_gate(paths: Iterable[str], processors: Iterable[str] = PROCESSORS) -> list[str]:

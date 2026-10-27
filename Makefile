@@ -29,9 +29,7 @@ setup:
 				curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable; \
 			fi; \
 			export PATH="$$HOME/.local/bin:$$HOME/.cargo/bin:$$PATH"; \
-			rustup update stable; \
-			rustup default stable; \
-			rustup component add rustfmt clippy --toolchain stable; \
+			rustup toolchain install; \
 			jdk_source=$$(brew --prefix openjdk@17)/libexec/openjdk.jdk; \
 			jdk_parent=/Library/Java/JavaVirtualMachines; \
 			jdk_target=$$jdk_parent/openjdk-17.jdk; \
@@ -87,9 +85,7 @@ setup:
 				curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable; \
 			fi; \
 			export PATH="$$HOME/.local/bin:$$HOME/.cargo/bin:$$PATH"; \
-			rustup update stable; \
-			rustup default stable; \
-			rustup component add rustfmt clippy --toolchain stable; \
+			rustup toolchain install; \
 			mkdir -p "$$HOME/.local/opt" "$$HOME/.local/bin"; \
 			if [ ! -x "$$HOME/.local/opt/sbt/bin/sbt" ] && [ ! -x "$$HOME/.local/opt/sbt-$(SBT_VERSION)/bin/sbt" ]; then \
 				sbt_archive=$$(mktemp); \
@@ -168,11 +164,12 @@ doctor:
 	rustup --version; \
 	active_toolchain=$$(rustup show active-toolchain); \
 	printf '%s\n' "$$active_toolchain"; \
-	case "$$active_toolchain" in stable*) ;; *) printf '%s\n' 'The active Rust toolchain must be stable.'; exit 1 ;; esac; \
-	rustup run stable rustc --version; \
-	rustup run stable cargo --version; \
-	rustup run stable rustfmt --version; \
-	rustup run stable cargo clippy --version; \
+	rust_toolchain=$$(sed -n 's/^channel = "\(.*\)"$$/\1/p' rust-toolchain.toml); \
+	case "$$active_toolchain" in "$$rust_toolchain"-*) ;; *) printf 'The active Rust toolchain must be %s, from rust-toolchain.toml.\n' "$$rust_toolchain"; exit 1 ;; esac; \
+	rustc --version; \
+	cargo --version; \
+	rustfmt --version; \
+	cargo clippy --version; \
 	cargo build --manifest-path processors/Cargo.toml --workspace; \
 	grep -Fq 'scalaVersion := "2.12.20"' jobs/build.sbt; \
 	grep -Fq 'sparkVersion = "3.5.5"' jobs/build.sbt; \
