@@ -363,40 +363,46 @@ def _scan_runtime(
                             message,
                         )
 
-        log_path = work_dir / f"{fixture.stem}.log.jsonl"
-        if not log_path.is_file():
-            continue
-        try:
-            log_lines = log_path.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            continue
-        for line in log_lines:
-            location_leak = any(
-                form in line
-                for location in locations
-                for coordinate in (location["lat"], location["lon"])
-                for form in _number_forms(coordinate)
-            )
-            if location_leak:
-                _aggregate(
-                    aggregated,
-                    "location-in-log",
-                    "log",
-                    "location",
-                    fixture.stem,
-                    line,
-                    "log line contains a fixture location coordinate",
+        log_paths = (
+            work_dir / f"{fixture.stem}.log.jsonl",
+            work_dir / f"{fixture.stem}.stdout.log",
+            work_dir / f"{fixture.stem}.stderr.log",
+        )
+        for log_path in log_paths:
+            if not log_path.is_file():
+                continue
+            try:
+                log_lines = log_path.read_text(encoding="utf-8").splitlines()
+            except OSError:
+                continue
+            for line_number, line in enumerate(log_lines, start=1):
+                locator = f"{fixture.stem}:{line_number}"
+                location_leak = any(
+                    form in line
+                    for location in locations
+                    for coordinate in (location["lat"], location["lon"])
+                    for form in _number_forms(coordinate)
                 )
-            if any(vehicle_id in line for vehicle_id in vehicle_ids):
-                _aggregate(
-                    aggregated,
-                    "raw-vehicle-id-in-log",
-                    "log",
-                    "vehicle_id",
-                    fixture.stem,
-                    line,
-                    "log line contains a raw fixture vehicle_id",
-                )
+                if location_leak:
+                    _aggregate(
+                        aggregated,
+                        "location-in-log",
+                        "log",
+                        "location",
+                        fixture.stem,
+                        locator,
+                        "log line contains a fixture location coordinate",
+                    )
+                if any(vehicle_id in line for vehicle_id in vehicle_ids):
+                    _aggregate(
+                        aggregated,
+                        "raw-vehicle-id-in-log",
+                        "log",
+                        "vehicle_id",
+                        fixture.stem,
+                        locator,
+                        "log line contains a raw fixture vehicle_id",
+                    )
 
     return [
         {
