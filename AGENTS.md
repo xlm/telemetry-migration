@@ -5,7 +5,7 @@ Legacy Scala/Spark Jobs under `jobs/` are being replaced one at a time by Rust P
 ## Commands
 
 - `make gate PROCESSOR=<name>` - run the full Gate for one Processor and write its Evidence Pack to `evidence/<name>/<sha>/`.
-- The `Gate` check on a PR reruns `make gate` in GitHub Actions on the PR head commit. It is the verdict that counts. A local `make gate` is a preview of it.
+- The `3. Gate verdict` check on a PR sums up `make gate` rerun in GitHub Actions on the PR head commit. It is the verdict that counts. A local `make gate` is a preview of it.
 - `make goldens JOB=<name>` - regenerate Goldens from the Scala Job. Platform team only.
 - `make test`, `make fmt`, `make lint` - all three languages.
 - `make setup`, `make doctor` - install and verify the macOS toolchain.
