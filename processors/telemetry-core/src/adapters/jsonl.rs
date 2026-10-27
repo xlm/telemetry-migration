@@ -73,13 +73,21 @@ where
     type Error = JsonlError;
 
     fn read_next(&mut self) -> Result<Option<T>, Self::Error> {
-        self.line.clear();
-        if self.reader.read_line(&mut self.line)? == 0 {
-            return Ok(None);
-        }
+        loop {
+            self.line.clear();
+            if self.reader.read_line(&mut self.line)? == 0 {
+                return Ok(None);
+            }
 
-        let line = self.line.trim_end_matches(['\r', '\n']);
-        Ok(Some(serde_json::from_str(line)?))
+            let line = self.line.trim_end_matches(['\r', '\n']);
+            if line.trim().is_empty() {
+                continue;
+            }
+
+            return serde_json::from_str(line)
+                .map(Some)
+                .map_err(JsonlError::Json);
+        }
     }
 }
 
@@ -130,28 +138,34 @@ where
 mod tests {
     use std::io::{self, BufReader, Cursor, Read};
 
-    use crate::types::OtaEvent;
+    use serde::{Deserialize, Serialize};
+
     use crate::{Sink, Source};
 
     use super::{JsonlError, JsonlSink, JsonlSource};
 
-    const OTA_EVENT: &str = r#"{"event_id":"event-1","vehicle_id":"VH-12345678","campaign_id":"OTA-1","status":"downloading","progress_pct":25.0,"event_ts":1700000000000,"schema_version":"1"}"#;
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct JsonlTestRecord {
+        value: String,
+    }
+
+    const JSONL_RECORD: &str = r#"{"value":"record-1"}"#;
 
     #[test]
     fn reads_jsonl_records_in_order() {
-        let input = format!("{OTA_EVENT}\n{OTA_EVENT}\n");
+        let input = format!("{JSONL_RECORD}\n{JSONL_RECORD}\n");
         let mut source = JsonlSource::from_reader(BufReader::new(Cursor::new(input)));
-        let first: Option<OtaEvent> = source.read_next().expect("first record");
-        let second: Option<OtaEvent> = source.read_next().expect("second record");
-        let end: Option<OtaEvent> = source.read_next().expect("end of input");
+        let first: Option<JsonlTestRecord> = source.read_next().expect("first record");
+        let second: Option<JsonlTestRecord> = source.read_next().expect("second record");
+        let end: Option<JsonlTestRecord> = source.read_next().expect("end of input");
 
         assert_eq!(
-            first.as_ref().map(|event| event.event_id.as_str()),
-            Some("event-1")
+            first.as_ref().map(|record| record.value.as_str()),
+            Some("record-1")
         );
         assert_eq!(
-            second.as_ref().map(|event| event.event_id.as_str()),
-            Some("event-1")
+            second.as_ref().map(|record| record.value.as_str()),
+            Some("record-1")
         );
         assert!(end.is_none());
     }
@@ -159,9 +173,39 @@ mod tests {
     #[test]
     fn propagates_malformed_jsonl_records() {
         let mut source = JsonlSource::from_reader(Cursor::new("{invalid}\n"));
-        let result: Result<Option<OtaEvent>, JsonlError> = source.read_next();
+        let result: Result<Option<JsonlTestRecord>, JsonlError> = source.read_next();
 
         assert!(matches!(result, Err(JsonlError::Json(_))));
+    }
+
+    #[test]
+    fn reads_next_record_after_a_malformed_line() {
+        let input = format!("{{invalid}}\n{JSONL_RECORD}\n");
+        let mut source = JsonlSource::from_reader(Cursor::new(input));
+        let malformed: Result<Option<JsonlTestRecord>, JsonlError> = source.read_next();
+        let next: Option<JsonlTestRecord> = source.read_next().expect("next record");
+
+        assert!(matches!(malformed, Err(JsonlError::Json(_))));
+        assert_eq!(
+            next,
+            Some(JsonlTestRecord {
+                value: "record-1".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn skips_blank_lines() {
+        let input = format!("\n  \r\n{JSONL_RECORD}\n");
+        let mut source = JsonlSource::from_reader(Cursor::new(input));
+        let record: Option<JsonlTestRecord> = source.read_next().expect("record after blanks");
+
+        assert_eq!(
+            record,
+            Some(JsonlTestRecord {
+                value: "record-1".to_owned()
+            })
+        );
     }
 
     #[test]
@@ -176,35 +220,37 @@ mod tests {
 
         let reader = BufReader::new(FailingReader);
         let mut source = JsonlSource::from_reader(reader);
-        let result: Result<Option<OtaEvent>, JsonlError> = source.read_next();
+        let result: Result<Option<JsonlTestRecord>, JsonlError> = source.read_next();
 
         assert!(matches!(result, Err(JsonlError::Io(_))));
     }
 
     #[test]
     fn writes_jsonl_records_with_a_trailing_newline() {
-        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let event: JsonlTestRecord =
+            serde_json::from_str(JSONL_RECORD).expect("valid JSONL record");
         let mut sink = JsonlSink::from_writer(Vec::new());
 
         sink.write_record(&event).expect("write record");
         let output = sink.writer;
 
         assert_eq!(output.last(), Some(&b'\n'));
-        let decoded: OtaEvent =
+        let decoded: JsonlTestRecord =
             serde_json::from_slice(&output[..output.len() - 1]).expect("written record");
         assert_eq!(decoded, event);
     }
 
     #[test]
     fn finish_returns_the_writer_with_written_records() {
-        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let event: JsonlTestRecord =
+            serde_json::from_str(JSONL_RECORD).expect("valid JSONL record");
         let mut sink = JsonlSink::from_writer(Vec::new());
         sink.write_record(&event).expect("write record");
 
         let output = sink.finish().expect("finish sink");
 
         assert_eq!(output.last(), Some(&b'\n'));
-        let decoded: OtaEvent =
+        let decoded: JsonlTestRecord =
             serde_json::from_slice(&output[..output.len() - 1]).expect("written record");
         assert_eq!(decoded, event);
     }
@@ -223,7 +269,8 @@ mod tests {
             }
         }
 
-        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let event: JsonlTestRecord =
+            serde_json::from_str(JSONL_RECORD).expect("valid JSONL record");
         let mut sink = JsonlSink::from_writer(FailingFlushWriter);
         sink.write_record(&event).expect("write record");
 
@@ -246,7 +293,8 @@ mod tests {
             }
         }
 
-        let event: OtaEvent = serde_json::from_str(OTA_EVENT).expect("valid event");
+        let event: JsonlTestRecord =
+            serde_json::from_str(JSONL_RECORD).expect("valid JSONL record");
         let mut sink = JsonlSink::from_writer(FailingWriter);
         let result = sink.write_record(&event);
 
