@@ -50,14 +50,18 @@ class StepResult:
 
 def read_jsonl(path: Path) -> tuple[list[dict], list[str]]:
     """Read JSON objects from JSONL and report missing files or invalid lines."""
-    records = []
-    errors = []
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
+        text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
         return [], [f"missing or unreadable file: {path} ({error})"]
+    return parse_jsonl(text)
 
-    for line_number, line in enumerate(lines, start=1):
+
+def parse_jsonl(text: str) -> tuple[list[dict], list[str]]:
+    """Parse JSON objects from JSONL text and report invalid lines."""
+    records = []
+    errors = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
