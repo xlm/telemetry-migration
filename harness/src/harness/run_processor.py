@@ -27,6 +27,7 @@ def run_harness(
 
     findings = []
     binary = bin_path
+    build_failed = False
     if binary is None:
         build = [
             "cargo",
@@ -46,6 +47,7 @@ def run_harness(
                 check=False,
             )
             if completed.returncode != 0:
+                build_failed = True
                 findings.append(
                     {
                         "type": "build-failed",
@@ -54,6 +56,7 @@ def run_harness(
                     }
                 )
         except OSError as error:
+            build_failed = True
             findings.append(
                 {
                     "type": "build-failed",
@@ -72,8 +75,55 @@ def run_harness(
         output_path = work_dir / f"{stem}.out.jsonl"
         dlq_path = work_dir / f"{stem}.dlq.jsonl"
         log_path = work_dir / f"{stem}.log.jsonl"
+        stdout_path = work_dir / f"{stem}.stdout.log"
+        stderr_path = work_dir / f"{stem}.stderr.log"
         run_findings = []
         exit_code = None
+        if build_failed:
+            stdout_path.write_text("", encoding="utf-8")
+            stderr_path.write_text("", encoding="utf-8")
+            run_findings.append(
+                {
+                    "type": "not-run",
+                    "fixture": stem,
+                    "message": "Processor not run: build failed",
+                }
+            )
+            record_diff = {
+                "missing": [],
+                "extra": [],
+                "duplicate": [],
+                "changed": [],
+                "identical": 0,
+            }
+            dlq_diff = {"missing": [], "extra": []}
+            counts = {
+                "fixture": stem,
+                "golden": 0,
+                "candidate": 0,
+                "identical": 0,
+                "missing": 0,
+                "extra": 0,
+                "changed": 0,
+                "duplicate": 0,
+                "dlq_golden": 0,
+                "dlq_candidate": 0,
+                "dlq_missing": 0,
+                "dlq_extra": 0,
+                "exit_code": None,
+            }
+            findings.extend(run_findings)
+            fixture_counts.append(
+                {
+                    **counts,
+                    "status": "red",
+                    "record_diff": record_diff,
+                    "dlq_diff": dlq_diff,
+                    "findings": run_findings,
+                }
+            )
+            continue
+
         try:
             completed = subprocess.run(
                 [
