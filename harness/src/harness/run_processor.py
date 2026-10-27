@@ -124,6 +124,8 @@ def run_harness(
             )
             continue
 
+        stdout = ""
+        stderr = ""
         try:
             completed = subprocess.run(
                 [
@@ -144,16 +146,20 @@ def run_harness(
                 check=False,
             )
             exit_code = completed.returncode
+            stdout = completed.stdout
+            stderr = completed.stderr
             if exit_code:
                 run_findings.append(
                     {
                         "type": "non-zero-exit",
                         "fixture": stem,
                         "exit_code": exit_code,
-                        "stderr": "\n".join(completed.stderr.splitlines()[-20:]),
+                        "stderr": "\n".join(stderr.splitlines()[-20:]),
                     }
                 )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as error:
+            stdout = _stream_text(error.stdout)
+            stderr = _stream_text(error.stderr)
             run_findings.append(
                 {"type": "timeout", "fixture": stem, "message": "Processor exceeded 60 seconds"}
             )
@@ -162,6 +168,8 @@ def run_harness(
                 {"type": "processor-unavailable", "fixture": stem, "message": str(error)}
             )
 
+        stdout_path.write_text(_stream_text(stdout), encoding="utf-8")
+        stderr_path.write_text(_stream_text(stderr), encoding="utf-8")
         for label, path in (("output", output_path), ("DLQ", dlq_path), ("log", log_path)):
             if not path.is_file():
                 run_findings.append(
@@ -271,3 +279,9 @@ def run_harness(
         f"{totals['with_drift']} with Drift"
     )
     return StepResult("Harness", status, summary, totals, findings)
+
+
+def _stream_text(stream: str | bytes | None) -> str:
+    if stream is None:
+        return ""
+    return stream.decode("utf-8", errors="replace") if isinstance(stream, bytes) else stream
