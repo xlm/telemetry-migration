@@ -31,6 +31,7 @@ ALL = ["charging-session", "ota-status"]
         (["manifests/classification.yaml"], ALL),
         (["schemas/ota-event.v1.schema.json"], ALL),
         (["Makefile"], ALL),
+        (["rust-toolchain.toml"], ALL),
         (["processors/telemetry-core/src/lib.rs"], ALL),
         (["processors/Cargo.toml"], ALL),
         (["processors/Cargo.lock"], ALL),

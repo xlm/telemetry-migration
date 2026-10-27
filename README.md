@@ -39,18 +39,18 @@ brew list --versions openjdk@17 sbt uv
 
 Success cue: the command lists installed versions for all three packages.
 
-Install Rust stable with its formatting and lint components:
+Install rustup, then the Rust version pinned in `rust-toolchain.toml` with
+its formatting and lint components. Run this from the repository root:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
 . "$HOME/.cargo/env"
-rustup toolchain install stable
-rustup default stable
-rustup component add rustfmt clippy --toolchain stable
+rustup toolchain install
 rustup show active-toolchain
 ```
 
-Success cue: `rustup show active-toolchain` starts with `stable`.
+Success cue: `rustup show active-toolchain` starts with `1.99.1` and says it
+is overridden by `rust-toolchain.toml`.
 
 Install uv's managed Python 3.12:
 
@@ -100,7 +100,7 @@ Success cue: the final line from `make doctor` is `doctor: ok`.
 | sbt | 1.10.7 | Scala build |
 | Scala | 2.12.20 | Spark-compatible Job build |
 | Spark | 3.5.5 | Job execution in `local[2]` mode |
-| Rust | stable with rustfmt and clippy | Processor workspace |
+| Rust | 1.99.1 (`rust-toolchain.toml`) with rustfmt and clippy | Processor workspace |
 | Python | 3.12 | Harness and fixture generator |
 | uv | Current stable with PEP 735 dependency-group support | Python environment and commands |
 
@@ -187,18 +187,20 @@ Every pull request runs the Gate in GitHub Actions
 (`.github/workflows/gate.yml`). The `Processors to Gate` job runs
 `gate-processors`, which lists the Processors the PR's changes can affect. A
 Processor's own crate or Processor Manifest selects that Processor. A Gate
-input, the `Makefile` or shared Rust selects every Processor. Anything else
-selects none. Each selected Processor gets a `Gate (<name>)` job that runs
-`make gate` on the PR head commit against the PR's base branch, shows the
-Evidence Pack on the job summary page, and uploads it with the raw Processor
-output as the `gate-<name>` artifact. The `Gate` check is green when every
-selected job is green or none was needed, and it is the verdict that counts
-for review. A push to `main` only builds the Processors, so later PRs start
-with a warm build cache.
+input, the `Makefile`, `rust-toolchain.toml` or shared Rust selects every
+Processor. Anything else selects none. Each selected Processor gets a
+`Gate (<name>)` job that runs `make gate` on the PR head commit against the
+PR's base branch, shows the Evidence Pack on the job summary page, and uploads
+it with the raw Processor output as the `gate-<name>` artifact. The `Gate`
+check is green when every selected job is green or none was needed, and it is
+the verdict that counts for review. A push to `main` only builds the
+Processors, so later PRs start with a warm build cache. The cache is keyed on
+the Rust version, so after bumping `rust-toolchain.toml`, warm it by hand:
+Actions, Gate, Run workflow on `main`.
 
 The Gate runs the PR's own `harness/` and workflow, so a PR could weaken
-the Gate and still pass it. `.github/CODEOWNERS` covers every Gate input
-and the `Makefile`. With "Require review from Code Owners" set on `main`,
+the Gate and still pass it. `.github/CODEOWNERS` covers every Gate input,
+the `Makefile` and `rust-toolchain.toml`. With "Require review from Code Owners" set on `main`,
 GitHub enforces that review from the base branch, where the PR can't
 change it.
 
