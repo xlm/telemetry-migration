@@ -192,20 +192,31 @@ def compare_manifests(processor: str, *, root: Path = ROOT) -> tuple[list[dict],
             f"from {old_retention} to {new_retention}",
         )
 
+    old_logging = baseline.get("logging", {})
+    new_logging = manifest.get("logging", {})
+    removed_hashed = set(old_logging.get("hashed", [])) - set(new_logging.get("hashed", []))
+    added_forbidden = set(new_logging.get("forbidden", [])) - set(old_logging.get("forbidden", []))
     for category in ("forbidden", "hashed"):
-        old_entries = set(baseline.get("logging", {}).get(category, []))
-        new_entries = set(manifest.get("logging", {}).get(category, []))
+        old_entries = set(old_logging.get(category, []))
+        new_entries = set(new_logging.get(category, []))
         for field in sorted(old_entries - new_entries):
+            moved_to_forbidden = category == "hashed" and field in added_forbidden
             add(
-                f"logging-{category}-removed",
+                "logging-hashed-to-forbidden"
+                if moved_to_forbidden
+                else f"logging-{category}-removed",
                 None,
                 field,
                 field,
                 None,
-                "violation",
-                f"logging {category} restriction removed for {field}",
+                "clarification" if moved_to_forbidden else "violation",
+                f"logging restriction for {field} moved from hashed to forbidden"
+                if moved_to_forbidden
+                else f"logging {category} restriction removed for {field}",
             )
         for field in sorted(new_entries - old_entries):
+            if category == "forbidden" and field in removed_hashed:
+                continue
             add(
                 f"logging-{category}-added",
                 None,
