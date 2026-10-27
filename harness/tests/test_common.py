@@ -50,6 +50,16 @@ def test_parse_jsonl_rejects_non_standard_numbers_and_duplicate_keys(line):
     assert errors[0].startswith("line 2: invalid JSON")
 
 
+def test_parse_jsonl_rejects_overflowing_float_values():
+    records, errors = parse_jsonl('{"x": 1e999}\n{"x": -1e999}\n{"x": 1.5e3}\n')
+    assert records == [{"x": 1500.0}]
+    assert len(errors) == 2
+    assert errors[0].startswith("line 1: invalid JSON")
+    assert errors[1].startswith("line 2: invalid JSON")
+    assert "finite" in errors[0]
+    assert "finite" in errors[1]
+
+
 @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85"])
 def test_parse_jsonl_splits_records_on_newline_only(separator):
     records, errors = parse_jsonl(f'{{"note": "a{separator}b"}}\n{{"ok": 1}}\n')
