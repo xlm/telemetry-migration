@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -70,6 +71,7 @@ def parse_jsonl(text: str) -> tuple[list[dict], list[str]]:
             record = json.loads(
                 line,
                 parse_constant=_reject_constant,
+                parse_float=_parse_finite_float,
                 object_pairs_hook=_reject_duplicate_keys,
             )
         except json.JSONDecodeError as error:
@@ -87,6 +89,13 @@ def parse_jsonl(text: str) -> tuple[list[dict], list[str]]:
 
 def _reject_constant(name: str):
     raise ValueError(f"{name} is not a JSON number")
+
+
+def _parse_finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError(f"{text} is not a finite JSON number")
+    return value
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:

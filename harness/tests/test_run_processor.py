@@ -132,9 +132,7 @@ def test_processor_matching_its_goldens_is_green(tmp_path):
     assert result.findings == []
 
 
-def test_unreadable_golden_is_reported_without_skipping_other_fixtures(
-    tmp_path, monkeypatch
-):
+def test_unreadable_golden_is_reported_without_skipping_other_fixtures(tmp_path, monkeypatch):
     unreadable_golden = ROOT / "goldens" / "ota-status" / "01-normal.status.jsonl"
     original_read_bytes = Path.read_bytes
 
