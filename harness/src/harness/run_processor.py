@@ -328,9 +328,7 @@ def _snapshot(directory: Path) -> dict[Path, bytes | None]:
     return snapshot
 
 
-def _golden_records(
-    goldens: dict[Path, bytes | None], path: Path
-) -> tuple[list[dict], list[str]]:
+def _golden_records(goldens: dict[Path, bytes | None], path: Path) -> tuple[list[dict], list[str]]:
     if path not in goldens:
         return [], [f"missing or unreadable file: {path}"]
     if goldens[path] is None:
