@@ -15,6 +15,7 @@ val jdk17Options = Seq(
 
 lazy val commonSettings = Seq(
   libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion,
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   Compile / run / fork := true,
   Compile / run / javaOptions ++= jdk17Options,
   Compile / run / javaOptions += "-Dspark.master=local[2]",
