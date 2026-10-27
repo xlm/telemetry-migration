@@ -164,6 +164,7 @@ doctor:
 	uv run --project harness --python $(PYTHON_VERSION) python -c 'import click, jsonschema, yaml'; \
 	printf '%s\n' 'Python dependencies: click, jsonschema, pyyaml'; \
 	uv run --project harness --python $(PYTHON_VERSION) gate --help >/dev/null; printf '%s\n' 'Gate CLI: ok'; \
+	uv run --project harness --python $(PYTHON_VERSION) gate-processors --help >/dev/null; printf '%s\n' 'Gate Processor selector: ok'; \
 	rustup --version; \
 	active_toolchain=$$(rustup show active-toolchain); \
 	printf '%s\n' "$$active_toolchain"; \
