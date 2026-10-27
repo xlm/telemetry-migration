@@ -22,6 +22,7 @@ PROTECTED_PATHS = (
     "contracts/",
     "jobs/",
     "downstream/",
+    ".github/",
 )
 
 

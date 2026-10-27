@@ -23,6 +23,10 @@ def test_protected_path_matching_includes_exact_rules_and_near_misses():
         "contracts/schema.json": True,
         "jobs/example.scala": True,
         "downstream/warranty.py": True,
+        ".github/workflows/gate.yml": True,
+        ".github": False,
+        ".githubx/workflows/gate.yml": False,
+        "docs/.github/gate.yml": False,
     }
     for path, expected in cases.items():
         assert bool(path_is_protected(path)) is expected
