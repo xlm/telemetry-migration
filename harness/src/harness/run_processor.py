@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from harness.common import PROCESSORS, ROOT, StepResult, read_jsonl
+from harness.common import PROCESSORS, ROOT, StepResult, parse_jsonl, read_jsonl
 from harness.diff import compare_dlq, compare_records
 
 
@@ -26,6 +26,26 @@ def run_harness(
     work_dir.mkdir(parents=True)
 
     findings = []
+    fixtures = sorted((root / "fixtures" / processor).glob("*.jsonl"))
+    golden_dir = goldens_dir / processor
+    # Read before any Processor runs, so a Processor cannot rewrite what it is compared with.
+    goldens = _snapshot(golden_dir)
+    if not fixtures:
+        findings.append({"type": "no-fixtures", "message": f"no fixtures in fixtures/{processor}/"})
+    expected_goldens = {
+        name
+        for fixture in fixtures
+        for name in (f"{fixture.stem}.{spec.suffix}.jsonl", f"{fixture.stem}.dlq.jsonl")
+    }
+    for path in goldens:
+        if path.name not in expected_goldens:
+            findings.append(
+                {
+                    "type": "orphan-golden",
+                    "path": _display(path, root),
+                    "message": f"Golden {_display(path, root)} has no fixture",
+                }
+            )
     binary = bin_path
     build_failed = False
     if binary is None:
@@ -69,7 +89,6 @@ def run_harness(
         binary = root / binary
 
     fixture_counts = []
-    fixtures = sorted((root / "fixtures" / processor).glob("*.jsonl"))
     for fixture in fixtures:
         stem = fixture.stem
         output_path = work_dir / f"{stem}.out.jsonl"
@@ -176,19 +195,19 @@ def run_harness(
                     {"type": "missing-file", "fixture": stem, "file": label, "path": str(path)}
                 )
 
-        golden_path = goldens_dir / processor / f"{stem}.{spec.suffix}.jsonl"
-        golden_dlq_path = goldens_dir / processor / f"{stem}.dlq.jsonl"
-        golden_records, golden_errors = read_jsonl(golden_path)
-        golden_dlq, golden_dlq_errors = read_jsonl(golden_dlq_path)
+        golden_path = golden_dir / f"{stem}.{spec.suffix}.jsonl"
+        golden_dlq_path = golden_dir / f"{stem}.dlq.jsonl"
+        golden_records, golden_errors = _golden_records(goldens, golden_path)
+        golden_dlq, golden_dlq_errors = _golden_records(goldens, golden_dlq_path)
         candidate_records, candidate_errors = read_jsonl(output_path)
         candidate_dlq, candidate_dlq_errors = read_jsonl(dlq_path)
         _, candidate_log_errors = read_jsonl(log_path)
 
-        if not golden_path.is_file():
+        if golden_path not in goldens:
             run_findings.append(
                 {"type": "missing-golden", "fixture": stem, "path": str(golden_path)}
             )
-        if not golden_dlq_path.is_file():
+        if golden_dlq_path not in goldens:
             run_findings.append(
                 {"type": "missing-golden", "fixture": stem, "path": str(golden_dlq_path)}
             )
@@ -254,6 +273,17 @@ def run_harness(
             }
         )
 
+    goldens_after = _snapshot(golden_dir)
+    for path in sorted(goldens.keys() | goldens_after.keys()):
+        if goldens.get(path) != goldens_after.get(path):
+            findings.append(
+                {
+                    "type": "golden-modified",
+                    "path": _display(path, root),
+                    "message": f"Golden {_display(path, root)} changed while the Processor ran",
+                }
+            )
+
     totals = {
         "fixtures": len(fixtures),
         "identical": sum(item["identical"] for item in fixture_counts),
@@ -279,6 +309,28 @@ def run_harness(
         f"{totals['with_drift']} with Drift"
     )
     return StepResult("Harness", status, summary, totals, findings)
+
+
+def _snapshot(directory: Path) -> dict[Path, bytes]:
+    if not directory.is_dir():
+        return {}
+    return {path: path.read_bytes() for path in sorted(directory.iterdir()) if path.is_file()}
+
+
+def _golden_records(goldens: dict[Path, bytes], path: Path) -> tuple[list[dict], list[str]]:
+    if path not in goldens:
+        return [], [f"missing or unreadable file: {path}"]
+    try:
+        return parse_jsonl(goldens[path].decode("utf-8"))
+    except UnicodeError as error:
+        return [], [f"missing or unreadable file: {path} ({error})"]
+
+
+def _display(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
 
 
 def _stream_text(stream: str | bytes | None) -> str:
