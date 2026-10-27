@@ -1,3 +1,4 @@
+// Throwaway: proves the Gate check goes green for a Processor-only change.
 mod core;
 mod types;
 
