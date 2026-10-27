@@ -194,7 +194,23 @@ gate:
 	uv run --project harness --python $(PYTHON_VERSION) gate "$$@"
 
 goldens:
-	@printf 'goldens: not implemented (JOB=%s)\n' '$(JOB)'; exit 1
+	@set -eu; \
+	export PATH="$$HOME/.local/bin:$$HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$$PATH"; \
+	case "$$(uname -s)" in \
+		Darwin) JAVA_HOME=$$(/usr/libexec/java_home -v 17);; \
+		Linux) JAVA_HOME=$$(find /usr/lib/jvm -mindepth 1 -maxdepth 1 -type d -name '*17*' -print 2>/dev/null | sort | head -n 1);; \
+		*) printf '%s\n' 'Unsupported operating system.'; exit 1;; \
+	esac; \
+	if [ -z "$$JAVA_HOME" ] || [ ! -x "$$JAVA_HOME/bin/java" ]; then printf '%s\n' 'JAVA_HOME must resolve to JDK 17.'; exit 1; fi; \
+	export JAVA_HOME SPARK_LOCAL_IP=127.0.0.1; \
+	case "$(JOB)" in \
+		ota-status) project=otaStatus;; \
+		charging-session) project=chargingSession;; \
+		*) printf '%s\n' 'usage: make goldens JOB=ota-status|charging-session'; exit 1;; \
+	esac; \
+	rm -rf "goldens/$(JOB)" && mkdir -p "goldens/$(JOB)"; \
+	sbt_opts="$${SBT_OPTS:-} $(SBT_REPOSITORY_FLAGS)"; \
+	cd jobs && SBT_OPTS="$$sbt_opts" sbt -batch "$$project/run $(CURDIR)/fixtures/$(JOB) $(CURDIR)/goldens/$(JOB)"
 
 fixtures:
 	@set -eu; \
