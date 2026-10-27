@@ -482,7 +482,7 @@ If the session stops at a stop condition, read why. If the skill or Scala is at 
 
 From `demo/charging-session-migrated`:
 
-- `drift/dedup-and-idle`: change the dedup key to `event_id` and make the idle timeout use a wall-clock `Instant` instead of the Vehicle Clock. Keep the code plausible, as if written by someone who had not read the Scala carefully. Confirm `make gate` is red on the Harness for exactly fixtures 04 (extra accepted events, wrong `event_count`) and 09 (missing `TIMEOUT` summaries), green on every other fixture, and green on contract, Downstream System and privacy. Record the SHA.
+- `drift/dedup-and-idle`: change the dedup key to `event_id` and make the idle timeout use a wall-clock `Instant` instead of the Vehicle Clock. Keep the code plausible, as if written by someone who had not read the Scala carefully. Confirm `make gate` is red on the Harness for exactly fixtures 04 (extra accepted events, wrong `event_count`) and 09 (missing `TIMEOUT` summaries), green on every other fixture, red on the Downstream System for exactly fixture 09 (its 8 `TIMEOUT` flags missing), and green on contract and privacy. Record the SHA.
 - `violation/location-in-summary`: add `end_location` to the Rust summary struct, populated from the last accepted event's `location`, without touching the manifest or the contract. Confirm `make gate` is red on contract (`additionalProperties`), red on privacy (undeclared field carrying a sensitive-location value on an output topic), and that the Harness shows extra-field diffs on every fixture. Record the SHA.
 
 ### D4 - Backup run of the live prompt
@@ -504,7 +504,7 @@ Full run of show twice, with a timer. Second time, simulate the live session bei
 |---|---|---|---|
 | `main` | Job #1 migrated, Job #2 Scala + Goldens + Rust scaffold | red (todo!) | pre-run session start |
 | `demo/charging-session-migrated` | Devin's green port, PR open | green | narration, PR, Devin Review |
-| `drift/dedup-and-idle` | port with two planted Drifts | red on fixtures 04 and 09 only | live session start, backup session |
+| `drift/dedup-and-idle` | port with two planted Drifts | red on Harness 04 and 09, Downstream System 09 | live session start, backup session |
 | `violation/location-in-summary` | port leaking location | red, contract + privacy | terminal beat |
 
 Record each branch's SHA here after D3:
