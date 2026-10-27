@@ -1,8 +1,10 @@
 import os
+from pathlib import Path
 
 import pytest
 
 from harness import run_processor
+from harness.common import ROOT
 from harness.run_processor import run_harness
 
 
@@ -128,6 +130,47 @@ def test_processor_matching_its_goldens_is_green(tmp_path):
 
     assert result.status == "green"
     assert result.findings == []
+
+
+def test_unreadable_golden_is_reported_without_skipping_other_fixtures(
+    tmp_path, monkeypatch
+):
+    unreadable_golden = ROOT / "goldens" / "ota-status" / "01-normal.status.jsonl"
+    original_read_bytes = Path.read_bytes
+
+    def read_bytes(path):
+        if path == unreadable_golden:
+            raise PermissionError("permission denied")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    result = run_harness(
+        "ota-status",
+        ROOT / "harness" / "tests" / "fake_processor.py",
+        root=ROOT,
+        work_dir=tmp_path / "work",
+    )
+
+    assert result.status == "red"
+    fixture_counts = {item["fixture"]: item for item in result.counts["fixture_counts"]}
+    unreadable_fixture = fixture_counts["01-normal"]
+    assert unreadable_fixture["status"] == "red"
+    assert any(
+        finding["type"] == "unparseable-line"
+        and finding["file"] == "Golden"
+        and "missing or unreadable file" in finding["message"]
+        and unreadable_golden.name in finding["message"]
+        for finding in unreadable_fixture["findings"]
+    )
+
+    readable_records = fixture_counts["02-variant-status-strings"]
+    readable_dlq = fixture_counts["03-malformed"]
+    assert readable_records["status"] == "green"
+    assert readable_records["identical"] > 0
+    assert readable_dlq["status"] == "green"
+    assert readable_dlq["dlq_golden"] > 0
+    assert readable_dlq["dlq_missing"] == 0
+    assert readable_dlq["dlq_extra"] == 0
 
 
 @pytest.mark.parametrize(

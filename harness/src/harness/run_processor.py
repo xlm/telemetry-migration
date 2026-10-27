@@ -311,14 +311,29 @@ def run_harness(
     return StepResult("Harness", status, summary, totals, findings)
 
 
-def _snapshot(directory: Path) -> dict[Path, bytes]:
+def _snapshot(directory: Path) -> dict[Path, bytes | None]:
     if not directory.is_dir():
         return {}
-    return {path: path.read_bytes() for path in sorted(directory.iterdir()) if path.is_file()}
+    try:
+        paths = sorted(directory.iterdir())
+    except OSError:
+        return {}
+    snapshot = {}
+    for path in paths:
+        if path.is_file():
+            try:
+                snapshot[path] = path.read_bytes()
+            except OSError:
+                snapshot[path] = None
+    return snapshot
 
 
-def _golden_records(goldens: dict[Path, bytes], path: Path) -> tuple[list[dict], list[str]]:
+def _golden_records(
+    goldens: dict[Path, bytes | None], path: Path
+) -> tuple[list[dict], list[str]]:
     if path not in goldens:
+        return [], [f"missing or unreadable file: {path}"]
+    if goldens[path] is None:
         return [], [f"missing or unreadable file: {path}"]
     try:
         return parse_jsonl(goldens[path].decode("utf-8"))
