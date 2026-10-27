@@ -104,6 +104,20 @@ Success cue: the final line from `make doctor` is `doctor: ok`.
 | Python | 3.12 | Harness and fixture generator |
 | uv | Current stable with PEP 735 dependency-group support | Python environment and commands |
 
+The default Rust build needs only rustup/cargo and the Apple Command Line
+Tools. It does not need Kafka, cmake, or librdkafka. The Command Line Tools
+include the C++ compiler needed by the optional Kafka adapter. To build it,
+install cmake:
+
+```sh
+brew install cmake
+cargo build --manifest-path processors/Cargo.toml -p telemetry-core --features kafka
+```
+
+The first Kafka-feature build compiles librdkafka from source and takes a few
+minutes. A broker is needed only to run the adapter, and is available through
+`deploy/docker-compose.yaml`.
+
 Python runtime dependencies are Click, jsonschema, and PyYAML. The `dev`
 dependency group contains pytest and Ruff. Setuptools is the package build
 backend. `uv sync` creates the project-local `harness/.venv`; no manually
@@ -126,6 +140,8 @@ On Ubuntu, install `make` and `curl`, and have `sudo` available for apt before
 running `make setup`. The bootstrap uses apt to install JDK 17 and the C/C++
 compiler toolchain. Other supported Linux package managers are dnf, yum, and
 pacman.
+
+For the optional Kafka adapter, install cmake with `sudo apt-get install cmake`.
 
 sbt falls back to Google's Maven Central mirror if Maven Central rate-limits.
 
@@ -166,6 +182,30 @@ and untested broker semantics.
 The `charging-session.processor.yaml` scaffold is intentionally byte-identical
 to its Job Baseline, including `kind: job`. A future Migration changes its
 kind to `processor`.
+
+### Rust processors
+
+Build the release binaries from the repository root:
+
+```sh
+cargo build --release --manifest-path processors/Cargo.toml --workspace
+```
+
+The binaries are written to `processors/target/release/<name>`. Each binary
+accepts `--input F --output O --dlq D --log L`, for example:
+
+```sh
+processors/target/release/ota-status \
+  --input fixtures/ota-status/02-variant-status-strings.jsonl \
+  --output /tmp/ota-output.jsonl \
+  --dlq /tmp/ota-dlq.jsonl \
+  --log /tmp/ota-log.jsonl
+```
+
+The output and DLQ files contain JSONL records. The log file contains JSON
+log lines, with `vehicle_id` represented only by its 12-character hash.
+`charging-session` is currently a scaffold and panics with `not yet
+implemented` until its Job is migrated.
 
 ## Repository map
 
