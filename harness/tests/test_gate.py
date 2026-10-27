@@ -27,6 +27,17 @@ def test_protected_path_matching_includes_exact_rules_and_near_misses():
         ".github": False,
         ".githubx/workflows/gate.yml": False,
         "docs/.github/gate.yml": False,
+        "manifests/classification.yaml": True,
+        "./manifests/classification.yaml": True,
+        "manifests/classification.yml": False,
+        "manifests/classification.yaml.bak": False,
+        "manifests/nested/classification.yaml": False,
+        "manifests/Classification.yaml": False,
+        "classification.yaml": False,
+        "schemas/ota-event.v1.schema.json": True,
+        "schemas": False,
+        "schemasx/ota-event.v1.schema.json": False,
+        "docs/schemas/ota-event.v1.schema.json": False,
     }
     for path, expected in cases.items():
         assert bool(path_is_protected(path)) is expected

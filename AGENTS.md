@@ -25,8 +25,10 @@ These paths are the inputs to the Gate. They are owned by the platform and priva
 - `harness/`
 - `jobs/`
 - `manifests/*.job.yaml`
+- `manifests/classification.yaml`
 - `downstream/`
 - `.github/`
+- `schemas/`
 
 If the Gate is red, the fix goes in `processors/<name>/`. If you believe a Golden, Manifest, contract or Harness check is itself wrong, stop, explain why in your report with file and line references, and do not change it.
 
