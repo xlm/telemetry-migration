@@ -176,6 +176,41 @@ def test_manifest_diff_finding_types_and_dispositions(tmp_path, case, finding_ty
     assert overall == disposition
 
 
+def _with_location_input(manifest):
+    manifest["inputs"][0]["fields"].append(
+        {"name": "location", "classification": "sensitive-location", "purpose": "none"}
+    )
+    return manifest
+
+
+@pytest.mark.parametrize(
+    ("baseline_sources", "processor_sources", "processor_location_class", "disposition"),
+    [
+        (["source"], ["source", "location"], "sensitive-location", "new-processing"),
+        (["source"], ["location"], "sensitive-location", "new-processing"),
+        (["source"], ["source", "location"], "public", "new-processing"),
+        (["source", "location"], ["source"], "sensitive-location", "clarification"),
+        (["source", "location"], ["location", "source"], "sensitive-location", "clarification"),
+        (["source"], ["source", "vehicle_id"], "sensitive-location", "clarification"),
+    ],
+)
+def test_derived_from_gaining_a_sensitive_location_input_is_new_processing(
+    tmp_path, baseline_sources, processor_sources, processor_location_class, disposition
+):
+    baseline = _with_location_input(_manifest("job"))
+    processor = _with_location_input(_manifest("processor"))
+    baseline["outputs"][0]["fields"][0]["derived_from"] = baseline_sources
+    processor["outputs"][0]["fields"][0]["derived_from"] = processor_sources
+    processor["inputs"][0]["fields"][-1]["classification"] = processor_location_class
+    _write_tree(tmp_path, processor, baseline)
+
+    findings, _ = compare_manifests("demo", root=tmp_path)
+
+    finding = next(item for item in findings if item["type"] == "derived-from-change")
+    assert finding["field"] == "value"
+    assert finding["disposition"] == disposition
+
+
 def test_identical_manifests_have_no_findings_and_version_is_non_material(tmp_path):
     baseline = _manifest("job")
     processor = copy.deepcopy(baseline)

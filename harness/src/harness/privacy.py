@@ -29,6 +29,13 @@ def compare_manifests(processor: str, *, root: Path = ROOT) -> tuple[list[dict],
     classification = _load_yaml(root / "manifests" / "classification.yaml")
     # The order in classification.yaml is the sensitivity order.
     sensitivity_order = list(classification.get("classifications", {}))
+    location_inputs = {
+        field["name"]
+        for source in (baseline, manifest)
+        for topic in source.get("inputs", [])
+        for field in topic.get("fields", [])
+        if field.get("classification") == "sensitive-location"
+    }
     findings = []
 
     def add(
@@ -139,14 +146,20 @@ def compare_manifests(processor: str, *, root: Path = ROOT) -> tuple[list[dict],
                 if area == "outputs" and old_field.get("derived_from") != new_field.get(
                     "derived_from"
                 ):
+                    gained_sources = set(new_field.get("derived_from") or []) - set(
+                        old_field.get("derived_from") or []
+                    )
+                    gained_locations = sorted(gained_sources & location_inputs)
                     add(
                         "derived-from-change",
                         topic,
                         field,
                         old_field.get("derived_from"),
                         new_field.get("derived_from"),
-                        "clarification",
-                        f"derived_from changed for {field}",
+                        "new-processing" if gained_locations else "clarification",
+                        f"{field} now derived from sensitive-location {', '.join(gained_locations)}"
+                        if gained_locations
+                        else f"derived_from changed for {field}",
                     )
 
     baseline_outputs = {topic["topic"]: topic for topic in baseline.get("outputs", [])}
