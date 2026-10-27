@@ -26,6 +26,7 @@ def write_evidence(
     *,
     root: Path = ROOT,
     evidence_dir: Path | None = None,
+    bin_path: Path | None = None,
 ) -> StepResult:
     evidence_dir = evidence_dir or root / "evidence"
     sha = _git_value(root, ["rev-parse", "HEAD"], "unknown")
@@ -44,6 +45,8 @@ def write_evidence(
     reproduce = f"make gate PROCESSOR={processor}"
     if base != "origin/main":
         reproduce += f" BASE={base}"
+    if bin_path is not None:
+        reproduce += f" BIN={_repo_relative_path(bin_path, root)}"
     inventory = _inventory(manifest)
     evidence = {
         "identity": {
@@ -91,6 +94,15 @@ def write_evidence(
         {"path": str(destination)},
         [],
     )
+
+
+def _repo_relative_path(path: Path, root: Path) -> str:
+    supplied_path = Path(path)
+    candidate = supplied_path if supplied_path.is_absolute() else root / supplied_path
+    try:
+        return candidate.resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return str(path)
 
 
 def _markdown(processor: str, short_sha: str, evidence: dict) -> str:
