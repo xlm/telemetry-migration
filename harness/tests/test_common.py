@@ -1,4 +1,6 @@
-from harness.common import PROCESSORS, StepResult, read_jsonl
+import pytest
+
+from harness.common import PROCESSORS, StepResult, parse_jsonl, read_jsonl
 
 
 def test_read_jsonl_returns_records_and_parse_errors(tmp_path):
@@ -28,3 +30,34 @@ def test_registry_and_step_result_serialization():
         "counts": {},
         "findings": [],
     }
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        '{"energy_kwh": NaN}',
+        '{"energy_kwh": Infinity}',
+        '{"energy_kwh": -Infinity}',
+        '{"nested": {"values": [1, NaN]}}',
+        '{"energy_kwh": 1.2, "energy_kwh": 999}',
+        '{"nested": {"a": 1, "a": 2}}',
+    ],
+)
+def test_parse_jsonl_rejects_non_standard_numbers_and_duplicate_keys(line):
+    records, errors = parse_jsonl('{"ok": 1}\n' + line + "\n")
+    assert records == [{"ok": 1}]
+    assert len(errors) == 1
+    assert errors[0].startswith("line 2: invalid JSON")
+
+
+@pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85"])
+def test_parse_jsonl_splits_records_on_newline_only(separator):
+    records, errors = parse_jsonl(f'{{"note": "a{separator}b"}}\n{{"ok": 1}}\n')
+    assert errors == []
+    assert records == [{"note": f"a{separator}b"}, {"ok": 1}]
+
+
+def test_parse_jsonl_accepts_crlf_and_quoted_constants():
+    records, errors = parse_jsonl('{"status": "NaN"}\r\n{"status": "Infinity"}\r\n')
+    assert errors == []
+    assert records == [{"status": "NaN"}, {"status": "Infinity"}]
