@@ -61,16 +61,38 @@ def parse_jsonl(text: str) -> tuple[list[dict], list[str]]:
     """Parse JSON objects from JSONL text and report invalid lines."""
     records = []
     errors = []
-    for line_number, line in enumerate(text.splitlines(), start=1):
+    # JSONL separates records with "\n" only. str.splitlines() would also split on
+    # characters such as U+2028 that are valid inside a JSON string.
+    for line_number, line in enumerate(text.split("\n"), start=1):
         if not line.strip():
             continue
         try:
-            record = json.loads(line)
+            record = json.loads(
+                line,
+                parse_constant=_reject_constant,
+                object_pairs_hook=_reject_duplicate_keys,
+            )
         except json.JSONDecodeError as error:
             errors.append(f"line {line_number}: invalid JSON ({error.msg})")
+            continue
+        except ValueError as error:
+            errors.append(f"line {line_number}: invalid JSON ({error})")
             continue
         if not isinstance(record, dict):
             errors.append(f"line {line_number}: expected a JSON object")
             continue
         records.append(record)
     return records, errors
+
+
+def _reject_constant(name: str):
+    raise ValueError(f"{name} is not a JSON number")
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+    record = {}
+    for key, value in pairs:
+        if key in record:
+            raise ValueError(f"duplicate key {key!r}")
+        record[key] = value
+    return record
