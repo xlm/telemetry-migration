@@ -190,7 +190,7 @@ Every pull request runs the Gate in GitHub Actions
    the PR's changes can affect. A Processor's own crate or Processor Manifest
    selects that Processor. A Gate input, the `Makefile`, `rust-toolchain.toml`
    or shared Rust selects every Processor. Anything else selects none.
-2. `2. Gate: <name>`, one per selected Processor, runs `make gate` on the PR
+2. `2. Gate (<name>)`, one per selected Processor, runs `make gate` on the PR
    head commit against the PR's base branch. It shows the Evidence Pack on the
    job summary page and uploads it with the raw Processor output as the
    `gate-<name>` artifact.
@@ -257,7 +257,7 @@ to its Job Baseline, including `kind: job`. A future Migration changes its
 kind to `processor`.
 
 On a PR, start at the `3. Gate verdict` check: its summary page lists each
-Processor's final Gate line. A red `2. Gate: <name>` job has the full report
+Processor's final Gate line. A red `2. Gate (<name>)` job has the full report
 in its log, and the Evidence Pack on its summary page and in its
 `gate-<name>` artifact. A job whose log has no Gate report failed outside the
 Gate, for example a runner fault, a failed download or a timeout. Re-run it

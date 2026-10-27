@@ -50,7 +50,7 @@ When the Gate is green, open a PR against `main`. The description must contain, 
 
 ## 7. Gate check
 
-Wait for the `3. Gate verdict` check on the PR. It sums up the Gate rerun in GitHub Actions on the PR head commit, and it is the verdict that counts. If it is red, read the log of each red `2. Gate: <name>` job:
+Wait for the `3. Gate verdict` check on the PR. It sums up the Gate rerun in GitHub Actions on the PR head commit, and it is the verdict that counts. If it is red, read the log of each red `2. Gate (<name>)` job:
 
 - The log contains a Gate report (a `Gate: RED - <steps>` line, followed by the later workflow steps): treat every finding as in step 5. Find what the Scala does, fix the Rust, push, and wait for the check again.
 - The log has no Gate report (runner fault, failed download, timeout, cancelled run): it is an infrastructure failure, not a fix attempt. Re-run the failed jobs once. If the re-run also has no Gate report, or you can't re-run, report it.

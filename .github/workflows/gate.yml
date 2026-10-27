@@ -40,7 +40,7 @@ jobs:
           printf 'Selected Processors: `%s`\n' "$list" >> "$GITHUB_STEP_SUMMARY"
 
   gate:
-    name: "2. Gate: ${{ matrix.processor }}"
+    name: 2. Gate
     needs: processors
     if: needs.processors.outputs.list != '[]'
     runs-on: ubuntu-latest
