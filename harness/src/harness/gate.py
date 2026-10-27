@@ -18,11 +18,14 @@ PROTECTED_PATHS = (
     "goldens/",
     "fixtures/",
     "manifests/*.job.yaml",
+    "manifests/classification.yaml",
     "harness/",
     "contracts/",
     "jobs/",
     "downstream/",
     ".github/",
+    # Not read by the Gate, but the input topics' contract is platform-owned.
+    "schemas/",
 )
 
 
@@ -37,7 +40,8 @@ def path_is_protected(path: str, rules: tuple[str, ...] = PROTECTED_PATHS) -> li
             and normalized.count("/") == 1
             and normalized.endswith(".job.yaml")
         )
-        if directory_match or manifest_match:
+        file_match = normalized == rule
+        if directory_match or manifest_match or file_match:
             matches.append(rule)
     return matches
 

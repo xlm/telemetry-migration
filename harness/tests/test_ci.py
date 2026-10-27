@@ -28,6 +28,8 @@ ALL = ["charging-session", "ota-status"]
         (["goldens/ota-status/01-normal.status.jsonl"], ALL),
         (["harness/src/harness/gate.py"], ALL),
         ([".github/workflows/gate.yml"], ALL),
+        (["manifests/classification.yaml"], ALL),
+        (["schemas/ota-event.v1.schema.json"], ALL),
         (["Makefile"], ALL),
         (["processors/telemetry-core/src/lib.rs"], ALL),
         (["processors/Cargo.toml"], ALL),

@@ -38,7 +38,7 @@ Update `manifests/$1.processor.yaml` to describe exactly what the Processor read
 
 ## 5. Gate
 
-Run `make gate PROCESSOR=$1`. For every Drift, go back to the Scala, find what it actually does, fix the Rust, re-run. Never touch `goldens/`, `fixtures/`, `contracts/`, `harness/`, `jobs/`, `downstream/` or the Baseline.
+Run `make gate PROCESSOR=$1`. For every Drift, go back to the Scala, find what it actually does, fix the Rust, re-run. Never touch `goldens/`, `fixtures/`, `contracts/`, `harness/`, `jobs/`, `downstream/`, `.github/`, `schemas/`, `manifests/classification.yaml` or the Baseline.
 
 ## 6. PR
 
