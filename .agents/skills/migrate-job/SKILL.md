@@ -48,17 +48,21 @@ When the Gate is green, open a PR against `main`. The description must contain, 
 2. Every Drift found during step 5, with its root cause in the Scala.
 3. The known limitations and ambiguities from `CHARACTERISATION.md`.
 
+## 7. Gate check
+
+Wait for the `Gate` check on the PR. It reruns the Gate in GitHub Actions on the PR head commit, and it is the verdict that counts. If it is red, read the summary of each red `Gate (<name>)` job and treat every finding as in step 5: find what the Scala does, fix the Rust, push, and wait for the check again.
+
 ## Stop conditions
 
 Report instead of continuing when:
 
 - step 2 finds undeclared data handling
 - a rule in the Scala cannot be determined from the code
-- the Gate is still red after three fix attempts on the same Drift
+- the Gate is still red after three fix attempts on the same Drift, counting local runs and the `Gate` check together
 - any fix would require editing a read-only path
 
 ## Acceptance
 
-- `make gate PROCESSOR=$1` green.
+- `Gate` check green on the PR.
 - Diff confined to `processors/$1/` and `manifests/$1.processor.yaml`.
 - PR description structured as in step 6.
