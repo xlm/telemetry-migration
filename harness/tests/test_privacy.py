@@ -1,11 +1,15 @@
 import copy
 import json
+import os
+import shutil
 from pathlib import Path
 
 import pytest
 import yaml
 
+from harness.common import ROOT
 from harness.privacy import compare_manifests, run_privacy
+from harness.run_processor import run_harness
 
 CLASSIFICATIONS = {
     "classifications": {
@@ -335,6 +339,54 @@ def test_runtime_detects_location_and_raw_vehicle_id_in_logs(tmp_path):
     assert any(item["type"] == "location-in-log" for item in location_result.findings)
     assert any(item["type"] == "raw-vehicle-id-in-log" for item in vehicle_result.findings)
     assert not any(item["check"] == "runtime" for item in hashed_result.findings)
+
+
+def test_processor_stderr_is_scanned_as_a_runtime_log(tmp_path):
+    raw_vehicle_id = "VH-raw-console-test"
+    fixture_dir = tmp_path / "fixtures" / "ota-status"
+    fixture_dir.mkdir(parents=True)
+    fixture = {
+        "event_id": "event-1",
+        "vehicle_id": raw_vehicle_id,
+        "campaign_id": "campaign-1",
+        "status": "download",
+        "progress_pct": 10,
+        "event_ts": 1,
+    }
+    (fixture_dir / "01-normal.jsonl").write_text(json.dumps(fixture) + "\n", encoding="utf-8")
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir()
+    for filename in (
+        "ota-status.job.yaml",
+        "ota-status.processor.yaml",
+        "classification.yaml",
+    ):
+        shutil.copyfile(ROOT / "manifests" / filename, manifest_dir / filename)
+
+    processor = tmp_path / "fake_processor.py"
+    processor.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "arguments = dict(zip(sys.argv[1::2], sys.argv[2::2]))\n"
+        f"print('vehicle_id={raw_vehicle_id}', file=sys.stderr)\n"
+        "for option in ('--output', '--dlq', '--log'):\n"
+        "    Path(arguments[option]).write_text('', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    os.chmod(processor, 0o755)
+    work_dir = tmp_path / "work"
+
+    run_harness("ota-status", processor, root=tmp_path, work_dir=work_dir)
+    privacy = run_privacy("ota-status", root=tmp_path, work_dir=work_dir)
+
+    stderr_log = work_dir / "01-normal.stderr.log"
+    stdout_log = work_dir / "01-normal.stdout.log"
+    assert stderr_log.read_text(encoding="utf-8") == f"vehicle_id={raw_vehicle_id}\n"
+    assert stdout_log.read_text(encoding="utf-8") == ""
+    finding = next(item for item in privacy.findings if item["type"] == "raw-vehicle-id-in-log")
+    assert finding["topic"] == "log"
+    assert finding["field"] == "vehicle_id"
 
 
 def test_runtime_aggregates_repeated_location_leaks(tmp_path):
