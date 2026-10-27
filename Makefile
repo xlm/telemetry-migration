@@ -163,6 +163,7 @@ doctor:
 	uv run --project harness --python $(PYTHON_VERSION) pytest --version; \
 	uv run --project harness --python $(PYTHON_VERSION) python -c 'import click, jsonschema, yaml'; \
 	printf '%s\n' 'Python dependencies: click, jsonschema, pyyaml'; \
+	uv run --project harness --python $(PYTHON_VERSION) gate --help >/dev/null; printf '%s\n' 'Gate CLI: ok'; \
 	rustup --version; \
 	active_toolchain=$$(rustup show active-toolchain); \
 	printf '%s\n' "$$active_toolchain"; \
@@ -184,7 +185,13 @@ doctor:
 	printf '%s\n' 'doctor: ok'
 
 gate:
-	@printf 'gate: not implemented (PROCESSOR=%s)\n' '$(PROCESSOR)'; exit 1
+	@set -eu; \
+	if [ -z "$(PROCESSOR)" ]; then printf '%s\n' 'usage: make gate PROCESSOR=<name> [BASE=<ref>] [BIN=<path>]'; exit 2; fi; \
+	export PATH="$$HOME/.local/bin:$$HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$$PATH"; \
+	set -- --processor "$(PROCESSOR)"; \
+	if [ -n "$(BASE)" ]; then set -- "$$@" --base "$(BASE)"; fi; \
+	if [ -n "$(BIN)" ]; then set -- "$$@" --bin "$(BIN)"; fi; \
+	uv run --project harness --python $(PYTHON_VERSION) gate "$$@"
 
 goldens:
 	@printf 'goldens: not implemented (JOB=%s)\n' '$(JOB)'; exit 1
