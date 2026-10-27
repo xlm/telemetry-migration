@@ -354,8 +354,11 @@ def test_runtime_findings_use_safe_locators_for_raw_vehicle_id_leaks(tmp_path):
     raw_log_finding = next(
         item for item in runtime_findings if item["type"] == "raw-vehicle-id-in-log"
     )
-    assert raw_log_finding["example"] == "01-sample:1"
-    assert all(item["example"] == "01-sample:1" for item in runtime_findings)
+    output_finding = next(
+        item for item in runtime_findings if item["type"] == "undeclared-output-field"
+    )
+    assert raw_log_finding["example"] == "01-sample.log.jsonl:1"
+    assert output_finding["example"] == "01-sample.out.jsonl:1"
     assert event["vehicle_id"] not in json.dumps(runtime_findings)
 
 
@@ -405,6 +408,7 @@ def test_processor_stderr_is_scanned_as_a_runtime_log(tmp_path):
     finding = next(item for item in privacy.findings if item["type"] == "raw-vehicle-id-in-log")
     assert finding["topic"] == "log"
     assert finding["field"] == "vehicle_id"
+    assert finding["example"].startswith("01-normal.stderr.log:")
 
 
 def test_runtime_aggregates_repeated_location_leaks(tmp_path):

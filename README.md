@@ -175,7 +175,9 @@ Downstream System means that Processor's output has no warranty destination.
 
 The Evidence Pack is written to
 `evidence/<processor>/<short-sha>/evidence.md` and
-`evidence/<processor>/<short-sha>/evidence.json`. Raw Processor output, DLQ records, and logs, including `<fixture>.stdout.log` and `<fixture>.stderr.log`, are under `target/gate/<processor>/`.
+`evidence/<processor>/<short-sha>/evidence.json`. Raw Processor output,
+DLQ records, and logs, including `<fixture>.stdout.log` and
+`<fixture>.stderr.log`, are under `target/gate/<processor>/`.
 
 A Harness finding such as
 `changed CS-00000001 event_count: Golden 4, Processor 5` reports Drift:
