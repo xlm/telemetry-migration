@@ -183,6 +183,46 @@ def test_identical_manifests_have_no_findings_and_version_is_non_material(tmp_pa
     assert overall == "no-material-change"
 
 
+def test_hashed_to_forbidden_logging_change_is_a_clarification(tmp_path):
+    baseline = _manifest("job")
+    processor = _manifest("processor")
+    processor["logging"]["hashed"] = []
+    processor["logging"]["forbidden"].append("vehicle_id")
+    _write_tree(tmp_path, processor, baseline)
+
+    findings, overall = compare_manifests("demo", root=tmp_path)
+
+    logging_findings = [item for item in findings if item["field"] == "vehicle_id"]
+    assert logging_findings == [
+        {
+            "check": "manifest",
+            "type": "logging-hashed-to-forbidden",
+            "topic": None,
+            "field": "vehicle_id",
+            "baseline": "vehicle_id",
+            "processor": None,
+            "disposition": "clarification",
+            "message": "logging restriction for vehicle_id moved from hashed to forbidden",
+        }
+    ]
+    assert overall == "clarification"
+
+
+def test_forbidden_to_hashed_logging_change_remains_a_violation(tmp_path):
+    baseline = _manifest("job")
+    processor = _manifest("processor")
+    processor["logging"]["forbidden"] = []
+    processor["logging"]["hashed"].append("location")
+    _write_tree(tmp_path, processor, baseline)
+
+    findings, overall = compare_manifests("demo", root=tmp_path)
+
+    removed = next(item for item in findings if item["type"] == "logging-forbidden-removed")
+    assert removed["field"] == "location"
+    assert removed["disposition"] == "violation"
+    assert overall == "violation"
+
+
 def test_worst_manifest_disposition_wins(tmp_path):
     baseline = _manifest("job")
     processor = _manifest("processor")
