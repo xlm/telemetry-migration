@@ -59,7 +59,7 @@ _Avoid_: CI, pipeline, approval (approval is the human step after a green Gate)
 ## Data handling
 
 **Manifest**:
-The machine-readable declaration of what data a Job or Processor reads, derives, emits and logs, with each field's classification and allowed destinations.
+The machine-readable declaration of what data a Job or Processor reads, derives, emits and logs, with each field's classification and allowed destinations. Each Manifest names its owner's kind, Job or Processor. A Job's Manifest is its Baseline, a Processor's is its Processor Manifest.
 _Avoid_: Policy, schema, config
 
 **Baseline**:
