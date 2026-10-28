@@ -1,9 +1,9 @@
-# Evidence Pack: ota-status @ 7ac4129
+# Evidence Pack: ota-status @ 7d551e1
 
 > [!NOTE]
 > **GREEN: ready for human review.** Same data, same use as the approved Baseline. Output matches the legacy Job on all 3 test scenarios (14 records).
 
-[`7ac4129`](https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2) · branch `devin/1793147821-evidence-pack-headline` · Baseline v1 · Processor Manifest v1 · `make gate PROCESSOR=ota-status BASE=HEAD` · Path check base: this commit
+[`7d551e1`](https://github.com/xlm/telemetry-migration/commit/7d551e183e1b98eadf387294d2085a4f5b3f0d7c) · branch `devin/1793147821-evidence-pack-headline` · Baseline v1 · Processor Manifest v1 · `make gate PROCESSOR=ota-status BASE=HEAD` · Path check base: this commit
 
 | Harness | Contract | Downstream System | Privacy | Path check |
 | --- | --- | --- | --- | --- |
@@ -27,13 +27,13 @@ What a green Gate does not show:
 ## Identity
 
 - Processor: `ota-status`
-- Commit SHA: `7ac4129088fee0279b684a84d8966e88c21328a2`
-- Commit URL: https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2
+- Commit SHA: `7d551e183e1b98eadf387294d2085a4f5b3f0d7c`
+- Commit URL: https://github.com/xlm/telemetry-migration/commit/7d551e183e1b98eadf387294d2085a4f5b3f0d7c
 - Branch: `devin/1793147821-evidence-pack-headline`
 - Worktree dirty: `false`
 - Base: `HEAD`
 - Manifest versions: Baseline `1`, Processor `1`
-- Timestamp (UTC): `2026-10-28T00:54:54.587267Z`
+- Timestamp (UTC): `2026-10-28T01:01:24.593407Z`
 - Reproduce: `make gate PROCESSOR=ota-status BASE=HEAD`
 
 ## Inventory
