@@ -40,6 +40,7 @@ jobs:
           printf 'Selected Processors: `%s`\n' "$list" >> "$GITHUB_STEP_SUMMARY"
 
   gate:
+    # GitHub appends the matrix value: "2. Gate (ota-status)".
     name: 2. Gate
     needs: processors
     if: needs.processors.outputs.list != '[]'
