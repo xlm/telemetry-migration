@@ -256,10 +256,6 @@ Pack includes the finding and disposition for reviewer assessment. The Gate
 does not stop early, and all six step results remain available even when
 multiple steps are red.
 
-The `charging-session.processor.yaml` scaffold is intentionally byte-identical
-to its Job Baseline, including `kind: job`. A future Migration changes its
-kind to `processor`.
-
 On a PR, start at the `3. Gate verdict` check: its summary page lists each
 Processor's final Gate line. A red `2. Gate (<name>)` job has the full report
 in its log, and the Evidence Pack on its summary page and in its

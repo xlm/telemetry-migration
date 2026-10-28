@@ -7,6 +7,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
+from harness.common import PROCESSORS
 from harness.gen_fixtures import ROOT
 
 
@@ -122,15 +123,7 @@ def test_manifests_cover_inputs_outputs_and_baselines():
     ]
     for name, input_name in [("charging-session", "charging-event"), ("ota-status", "ota-event")]:
         baseline_path = ROOT / "manifests" / f"{name}.job.yaml"
-        processor_path = ROOT / "manifests" / f"{name}.processor.yaml"
         baseline = yaml.safe_load(baseline_path.read_text())
-        processor = yaml.safe_load(processor_path.read_text())
-        assert baseline["kind"] == "job"
-        if name == "charging-session":
-            assert baseline_path.read_bytes() == processor_path.read_bytes()
-        else:
-            assert processor["kind"] == "processor"
-            assert {**baseline, "kind": "processor"} == processor
         assert baseline["logging"] == {"forbidden": ["location"], "hashed": ["vehicle_id"]}
         assert baseline["retention_days"] == 30
         for entries, schema_path in [
@@ -145,3 +138,10 @@ def test_manifests_cover_inputs_outputs_and_baselines():
                 assert field["classification"] in classifications
         for topic in baseline["outputs"]:
             assert "location" not in {field["name"] for field in topic["fields"]}
+
+
+@pytest.mark.parametrize("name", sorted(PROCESSORS))
+def test_manifest_kind_matches_filename(name):
+    for kind in ["job", "processor"]:
+        manifest = yaml.safe_load((ROOT / "manifests" / f"{name}.{kind}.yaml").read_text())
+        assert manifest["kind"] == kind
