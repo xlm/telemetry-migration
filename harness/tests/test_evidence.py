@@ -410,6 +410,36 @@ def test_manifest_d3_location_appears_as_baseline_change(tmp_path):
     )
 
 
+def test_version_change_does_not_add_empty_privacy_failure(tmp_path):
+    findings = [
+        {
+            "check": "manifest",
+            "type": "version-change",
+            "disposition": "no-material-change",
+            "message": "Processor Manifest version changed",
+        },
+        {
+            "check": "runtime",
+            "type": "location-in-output",
+            "disposition": "violation",
+            "topic": "vehicle.charging.sessions",
+            "field": "end_location",
+            "fixture": "01-normal",
+            "count": 1,
+            "message": "field end_location, Baseline unchanged",
+        },
+    ]
+    evidence, markdown = _pack(
+        tmp_path,
+        _validation({"Privacy": "red"}, {"Privacy": findings}),
+        processor="charging-session",
+    )
+
+    assert len(evidence["summary"]["failures"]) == 1
+    assert evidence["summary"]["failures"][0]["step"] == "Privacy"
+    assert "unclassified" not in markdown
+
+
 def test_path_check_precedes_privacy_in_red_headline(tmp_path):
     evidence, _markdown_text = _pack(
         tmp_path,
