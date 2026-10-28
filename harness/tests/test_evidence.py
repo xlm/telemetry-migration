@@ -699,6 +699,18 @@ def test_worst_case_evidence_stays_within_markdown_limit(tmp_path):
         }
         for index in range(30)
     ]
+    manifest_findings = [
+        {
+            "check": "manifest",
+            "type": "new-output-field",
+            "disposition": "new-processing",
+            "topic": f"topic-{long_value}-{index}",
+            "field": f"field-{long_value}-{index}",
+            "processor": long_value,
+            "message": long_value,
+        }
+        for index in range(60)
+    ]
     path_findings = [
         {"type": "protected-path", "path": f"protected-{long_value}-{index}"} for index in range(25)
     ] + [{"type": "git-failed", "message": long_value} for _ in range(5)]
@@ -710,7 +722,7 @@ def test_worst_case_evidence_stays_within_markdown_limit(tmp_path):
                 "Harness": harness_findings,
                 "Contract": contract_findings,
                 "Downstream System": downstream_findings,
-                "Privacy": privacy_findings,
+                "Privacy": privacy_findings + manifest_findings,
                 "Path check": path_findings,
             },
             counts={"Harness": _fixture_counts(fixtures, 300)},
@@ -721,7 +733,10 @@ def test_worst_case_evidence_stays_within_markdown_limit(tmp_path):
     )
 
     assert all(len(step["findings"]) >= 20 for step in evidence["validation"])
+    assert len(evidence["change_assessment"]) == 60
+    assert len(evidence["summary"]["baseline_changes"]) == 60
     assert len(markdown) <= 20_000
+    assert "- and 52 more in evidence.json" in markdown
     first_screen = markdown.split("<details>", 1)[0]
     first_path = f"protected-{long_value}-0"
     assert first_path not in first_screen

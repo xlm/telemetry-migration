@@ -924,11 +924,14 @@ def _markdown(evidence: dict) -> str:
     if summary["baseline_unchanged"]:
         lines.append(summary["baseline_unchanged"])
     else:
-        for item in summary["baseline_changes"]:
+        baseline_changes = summary["baseline_changes"]
+        for item in baseline_changes[:8]:
             label = EXECUTIVE_PRIVACY_LABELS.get(
                 item["disposition"], item["disposition"] or "unclassified"
             )
             lines.append(f"- {item['sentence']} *({label})*")
+        if len(baseline_changes) > 8:
+            lines.append(f"- and {len(baseline_changes) - 8} more in evidence.json")
     if summary["failures"]:
         lines.extend(["", "## What failed", ""])
         for item in summary["failures"]:
