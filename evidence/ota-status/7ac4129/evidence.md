@@ -1,14 +1,40 @@
-# Evidence Pack: ota-status @ 20ea3d6
+# Evidence Pack: ota-status @ 7ac4129
+
+> [!NOTE]
+> **GREEN: ready for human review.** Same data, same use as the approved Baseline. Output matches the legacy Job on all 3 test scenarios (14 records).
+
+[`7ac4129`](https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2) · branch `devin/1793147821-evidence-pack-headline` · Baseline v1 · Processor Manifest v1 · `make gate PROCESSOR=ota-status BASE=HEAD` · Path check base: this commit
+
+| Harness | Contract | Downstream System | Privacy | Path check |
+| --- | --- | --- | --- | --- |
+| 🟢 green | 🟢 green | ⚪ skipped | 🟢 green | 🟢 green |
+
+## What changed against the Baseline
+
+No change to what data is read, derived, sent, logged or kept.
+
+## Residual uncertainties
+
+What a green Gate does not show:
+
+- Compared on 3 test scenarios (14 records) only. Behaviour that no scenario exercises is not compared.
+- The privacy scan looks for exact copies of test values. It would miss location that was rounded, encoded or merged into another field. The Manifest comparison catches declared derivations from location.
+- Kafka behaviour (ordering across partitions, redelivery, offsets) is outside this Gate.
+
+<details>
+<summary>Reviewer detail</summary>
 
 ## Identity
 
 - Processor: `ota-status`
-- Commit SHA: `20ea3d6e8a1c2afc4afda942b871fef38afa7210`
+- Commit SHA: `7ac4129088fee0279b684a84d8966e88c21328a2`
+- Commit URL: https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2
+- Branch: `devin/1793147821-evidence-pack-headline`
 - Worktree dirty: `false`
-- Base: `origin/main`
+- Base: `HEAD`
 - Manifest versions: Baseline `1`, Processor `1`
-- Timestamp (UTC): `2026-10-27T13:12:01.925716Z`
-- Reproduce: `make gate PROCESSOR=ota-status`
+- Timestamp (UTC): `2026-10-28T00:54:54.587267Z`
+- Reproduce: `make gate PROCESSOR=ota-status BASE=HEAD`
 
 ## Inventory
 
@@ -54,7 +80,7 @@ No manifest changes.
 | Contract | green | 14 records, 0 schema failures, 0 semantic failures |
 | Downstream System | skipped | no Downstream System script for this Processor's output (downstream: ota) |
 | Privacy | green | disposition no-material-change, 0 findings |
-| Path check | green | 0 protected paths touched (base origin/main) |
+| Path check | green | 0 protected paths touched (base HEAD) |
 
 ### Harness per-fixture counts
 
@@ -74,8 +100,4 @@ No findings.
 - Gate verdict: **GREEN**
 - Red steps: none
 
-## Residual uncertainties
-
-- Fixture coverage: equivalence is shown only on the committed fixtures. Rules or inputs no fixture exercises are unverified.
-- The runtime scan is value-based, not flow-based. It catches fixture values copied into outputs or logs, not transformed or derived leakage.
-- No broker semantics are tested. Ordering across partitions, redelivery, consumer group offsets, and idempotent production are outside the Harness.
+</details>
