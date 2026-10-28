@@ -82,13 +82,13 @@ jobs:
           printf 'dir=%s\n' "$pack" >> "$GITHUB_OUTPUT"
           {
             committed=$(git ls-files "evidence/$PROCESSOR/*/evidence.md" | cut -d/ -f3 | sort -u)
-            if [ -n "$committed" ]; then
-              printf '> Head includes committed Evidence Pack: `%s`\n\n' $committed
-            fi
             if [ -f "$pack/evidence.md" ]; then
               cat "$pack/evidence.md"
             else
               printf 'No Evidence Pack was written to `%s`.\n' "$pack"
+            fi
+            if [ -n "$committed" ]; then
+              printf '\n> Head includes committed Evidence Pack: `%s`\n\n' $committed
             fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -103,10 +103,15 @@ jobs:
         if: always()
         env:
           PROCESSOR: ${{ matrix.processor }}
+          PACK_DIR: ${{ steps.pack.outputs.dir }}
         run: |
           mkdir -p "$RUNNER_TEMP/result"
           line=$(grep -E '^Gate: (GREEN|RED)' "$RUNNER_TEMP/gate.log" | tail -n 1 || true)
           printf '%s\n' "${line:-No Gate report: infrastructure failure}" > "$RUNNER_TEMP/result/$PROCESSOR.txt"
+          why=$(jq -r '.summary.headline // empty' "$PACK_DIR/evidence.json" 2>/dev/null || true)
+          why=${why//|/\\|}
+          [ -n "$why" ] || why='No Evidence Pack was written'
+          printf '%s\n' "$why" > "$RUNNER_TEMP/result/$PROCESSOR.why.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -139,11 +144,13 @@ jobs:
           elif [ "$LIST" = '[]' ]; then
             body='No Processor needed a Gate.'
           else
-            body=$'| Processor | Result |\n| --- | --- |'
+            body=$'| Processor | Result | Why |\n| --- | --- | --- |'
             for processor in $(jq -r '.[]' <<<"$LIST"); do
               result=$(cat "results/$processor.txt" 2>/dev/null || echo 'No result: the job did not finish')
+              why=$(cat "results/$processor.why.txt" 2>/dev/null || echo 'No Evidence Pack: the job did not finish')
+              [ -n "$why" ] || why='No Evidence Pack: the job did not finish'
               [ "$result" = 'Gate: GREEN' ] || green=false
-              body+=$'\n'"| $processor | ${result#Gate: } |"
+              body+=$'\n'"| $processor | ${result#Gate: } | $why |"
             done
           fi
           {

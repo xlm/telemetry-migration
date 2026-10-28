@@ -195,9 +195,9 @@ Every pull request runs the Gate in GitHub Actions
    job summary page and uploads it with the raw Processor output as the
    `gate-<name>` artifact.
 3. `3. Gate verdict` is green when every selected Processor's Gate is green or
-   none was needed. Its summary page lists each Processor's result. It is the
-   one check `main` requires, because the number of `2. Gate` jobs changes
-   from PR to PR.
+   none was needed. Its summary table explains each result with the Evidence
+   Pack headline in the Why column. It is the one check `main` requires,
+   because the number of `2. Gate` jobs changes from PR to PR.
 
 A push to `main` only builds the Processors, so later PRs start with a warm
 build cache. The cache is keyed on the Rust version, so after bumping
