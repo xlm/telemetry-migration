@@ -355,10 +355,19 @@ def _lead_reason(
     if name == "Harness":
         return _harness_lead_reason(step, validation)
     if name == "Contract":
-        if findings:
-            records = len({(item.get("fixture"), _value(item.get("key"))) for item in findings})
+        contract_findings = [
+            item for item in findings if item.get("type") in ("schema", "semantic")
+        ]
+        if contract_findings:
+            records = len(
+                {
+                    (item.get("fixture"), _value(item.get("key")))
+                    for item in contract_findings
+                }
+            )
             return f"{_count_noun_verb(records, 'output record', 'breaks', 'break')} the output contract"
-        return _fallback_sentence("unknown", []).rstrip(".")
+        sentences, _types = _contract_sentences(findings)
+        return sentences[0].rstrip(".") if sentences else _fallback_sentence("unknown", []).rstrip(".")
     if name == "Downstream System":
         flag_drift = [item for item in findings if item.get("type") == "flag-drift"]
         if flag_drift:

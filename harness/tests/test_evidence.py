@@ -458,6 +458,57 @@ def test_unknown_finding_type_uses_fallback_for_each_step(tmp_path, name):
     assert failure["sentence"] == "1 `future-finding` finding, e.g. future detail."
 
 
+def test_contract_headline_uses_unparseable_line_fallback(tmp_path):
+    evidence, _markdown_text = _pack(
+        tmp_path,
+        _validation(
+            {"Contract": "red"},
+            {
+                "Contract": [
+                    {
+                        "type": "unparseable-line",
+                        "fixture": "fixture-01",
+                        "message": "invalid JSON at line 4",
+                    }
+                ]
+            },
+        ),
+    )
+
+    assert evidence["summary"]["headline"] == (
+        "Blocked at Contract: 1 `unparseable-line` finding, e.g. invalid JSON at line 4."
+    )
+
+
+def test_contract_headline_counts_only_schema_and_semantic_findings(tmp_path):
+    evidence, _markdown_text = _pack(
+        tmp_path,
+        _validation(
+            {"Contract": "red"},
+            {
+                "Contract": [
+                    {
+                        "type": "unparseable-line",
+                        "fixture": "fixture-01",
+                        "message": "invalid JSON at line 4",
+                    },
+                    {
+                        "type": "schema",
+                        "fixture": "fixture-01",
+                        "key": "CS-0001",
+                        "field": "energy_kwh",
+                        "message": "required property is missing",
+                    },
+                ]
+            },
+        ),
+    )
+
+    assert evidence["summary"]["headline"] == (
+        "Blocked at Contract: 1 output record breaks the output contract."
+    )
+
+
 def test_identity_links_resolve_proxy_github_environment_and_pull_request(tmp_path, monkeypatch):
     git_values = {
         ("rev-parse", "HEAD"): "0123456789abcdef",
