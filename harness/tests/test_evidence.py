@@ -299,7 +299,7 @@ def test_runtime_d3_location_leads_privacy_without_declared_change(tmp_path):
         "does not allow."
     )
     assert evidence["summary"]["baseline_unchanged"] == (
-        "No declared change. The Processor Manifest matches the Baseline, but the output "
+        "No declared change. The Processor Manifest matches the Baseline, but its output "
         "does not (see What failed)."
     )
     assert "**Privacy - policy violation, must be fixed:**" in markdown
