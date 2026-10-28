@@ -605,6 +605,8 @@ def _downstream_sentences(
 def _privacy_failures(findings: list[dict], inventory: dict) -> list[dict]:
     failures = []
     for disposition in DISPOSITION_ORDER:
+        if disposition == "no-material-change":
+            continue
         group = [item for item in findings if item.get("disposition") == disposition]
         if not group:
             continue
@@ -638,6 +640,9 @@ def _privacy_failures(findings: list[dict], inventory: dict) -> list[dict]:
         if declared:
             types.extend(dict.fromkeys(item.get("type", "unknown") for item in declared))
             sentences.append(f"{_plural(len(declared), 'declared change')} listed above.")
+        sentence = " ".join(sentence for sentence in sentences if sentence)
+        if not sentence:
+            continue
         count = sum(max(1, item.get("count", 1)) for item in group)
         failures.append(
             {
@@ -645,7 +650,7 @@ def _privacy_failures(findings: list[dict], inventory: dict) -> list[dict]:
                 "types": list(dict.fromkeys(types)),
                 "disposition": disposition,
                 "count": count,
-                "sentence": " ".join(sentence for sentence in sentences if sentence),
+                "sentence": sentence,
             }
         )
     other = [item for item in findings if item.get("disposition") not in DISPOSITION_ORDER]
