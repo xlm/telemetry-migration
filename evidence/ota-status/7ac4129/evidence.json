@@ -7,14 +7,17 @@
     "red_steps": []
   },
   "identity": {
-    "base": "origin/main",
+    "base": "HEAD",
     "baseline_manifest_version": 1,
+    "branch": "devin/1793147821-evidence-pack-headline",
+    "commit_url": "https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2",
+    "pr_number": null,
     "processor": "ota-status",
     "processor_manifest_version": 1,
-    "reproduce_command": "make gate PROCESSOR=ota-status",
-    "sha": "20ea3d6e8a1c2afc4afda942b871fef38afa7210",
-    "short_sha": "20ea3d6",
-    "timestamp_utc": "2026-10-27T13:12:01.925716Z",
+    "reproduce_command": "make gate PROCESSOR=ota-status BASE=HEAD",
+    "sha": "7ac4129088fee0279b684a84d8966e88c21328a2",
+    "short_sha": "7ac4129",
+    "timestamp_utc": "2026-10-28T00:54:54.587267Z",
     "worktree_dirty": false
   },
   "inventory": {
@@ -159,10 +162,42 @@
     "retention_days": 30
   },
   "residual_uncertainties": [
-    "Fixture coverage: equivalence is shown only on the committed fixtures. Rules or inputs no fixture exercises are unverified.",
-    "The runtime scan is value-based, not flow-based. It catches fixture values copied into outputs or logs, not transformed or derived leakage.",
-    "No broker semantics are tested. Ordering across partitions, redelivery, consumer group offsets, and idempotent production are outside the Harness."
+    "Compared on 3 test scenarios (14 records) only. Behaviour that no scenario exercises is not compared.",
+    "The privacy scan looks for exact copies of test values. It would miss location that was rounded, encoded or merged into another field. The Manifest comparison catches declared derivations from location.",
+    "Kafka behaviour (ordering across partitions, redelivery, offsets) is outside this Gate."
   ],
+  "summary": {
+    "alert": "NOTE",
+    "baseline_changes": [],
+    "baseline_unchanged": "No change to what data is read, derived, sent, logged or kept.",
+    "failures": [],
+    "headline": "Same data, same use as the approved Baseline. Output matches the legacy Job on all 3 test scenarios (14 records).",
+    "lead_step": null,
+    "steps": [
+      {
+        "name": "Harness",
+        "status": "green"
+      },
+      {
+        "name": "Contract",
+        "status": "green"
+      },
+      {
+        "name": "Downstream System",
+        "status": "skipped"
+      },
+      {
+        "name": "Privacy",
+        "status": "green"
+      },
+      {
+        "name": "Path check",
+        "status": "green"
+      }
+    ],
+    "verdict": "green",
+    "verdict_label": "GREEN: ready for human review."
+  },
   "validation": [
     {
       "counts": {
@@ -297,13 +332,13 @@
     },
     {
       "counts": {
-        "base": "origin/main",
+        "base": "HEAD",
         "protected_paths": 0
       },
       "findings": [],
       "name": "Path check",
       "status": "green",
-      "summary": "0 protected paths touched (base origin/main)"
+      "summary": "0 protected paths touched (base HEAD)"
     }
   ]
 }
