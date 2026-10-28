@@ -2,6 +2,8 @@ name: charging-session
 kind: processor
 version: 1
 inputs:
+  # Parsed fields match the Baseline. Location and input version are discarded
+  # before session state, and neither is emitted or logged.
   - topic: vehicle.charging.events
     fields:
       - {name: event_id, classification: internal-operational, purpose: validation-and-ordering}
@@ -16,6 +18,8 @@ inputs:
       - {name: location, classification: sensitive-location, purpose: none}
       - {name: schema_version, classification: public, purpose: contract-version}
 outputs:
+  # Event-time trapezoids, summed as doubles, round once to 3dp HALF_EVEN.
+  # Version is always "1". Timeouts carry the last accepted session event time.
   - topic: vehicle.charging.sessions
     downstream: [warranty, service]
     fields:
@@ -38,6 +42,8 @@ outputs:
       - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
       - {name: reason, classification: internal-operational, derived_from: [event_id, vehicle_id, session_id, event_ts, charging_state, soc_pct, power_kw, seq]}
 logging:
+  # Structured emission/rejection logs use only hashed vehicle identifiers.
+  # Run summaries contain counts, never raw records or location.
   forbidden: [location]
   hashed: [vehicle_id]
 retention_days: 30

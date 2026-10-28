@@ -1,5 +1,5 @@
-pub mod core;
-pub mod types;
+mod core;
+mod types;
 
 use std::error::Error;
 use std::process;
@@ -31,6 +31,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut emitted = 0;
     let mut rejected = 0;
     let mut processor = core::Processor::new();
+    let mut events = Vec::new();
 
     loop {
         let event = match source.read_next() {
@@ -40,29 +41,30 @@ fn run() -> Result<(), Box<dyn Error>> {
             Err(JsonlError::Io(error)) => return Err(error.into()),
         };
         read += 1;
+        events.push(event);
+    }
 
-        for record in processor.on_event(event) {
-            match record {
-                Emitted::Summary(record) => {
-                    output.write_record(&record)?;
-                    log_record(&LogRecord::new(
-                        "charging-session",
-                        LogEvent::SummaryEmitted,
-                        Some(&record.vehicle_id),
-                        None,
-                    ));
-                    emitted += 1;
-                }
-                Emitted::Dlq(record) => {
-                    log_record(&LogRecord::new(
-                        "charging-session",
-                        LogEvent::EventRejected,
-                        record.vehicle_id.as_deref(),
-                        Some(record.reason.as_str()),
-                    ));
-                    dlq.write_record(&record)?;
-                    rejected += 1;
-                }
+    for record in processor.process_batch(events) {
+        match record {
+            Emitted::Summary(record) => {
+                output.write_record(&record)?;
+                log_record(&LogRecord::new(
+                    "charging-session",
+                    LogEvent::SummaryEmitted,
+                    Some(&record.vehicle_id),
+                    None,
+                ));
+                emitted += 1;
+            }
+            Emitted::Dlq(record) => {
+                log_record(&LogRecord::new(
+                    "charging-session",
+                    LogEvent::EventRejected,
+                    record.vehicle_id.as_deref(),
+                    Some(record.reason.as_str()),
+                ));
+                dlq.write_record(&record)?;
+                rejected += 1;
             }
         }
     }
