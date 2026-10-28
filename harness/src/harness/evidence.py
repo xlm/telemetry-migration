@@ -219,9 +219,7 @@ def _summary(evidence: dict) -> dict:
         if finding.get("type") != "version-change"
     ]
     runtime_privacy_types = {
-        finding.get("type")
-        for finding in privacy_findings
-        if finding.get("check") == "runtime"
+        finding.get("type") for finding in privacy_findings if finding.get("check") == "runtime"
     }
     baseline_unchanged = None
     if not baseline_changes:
@@ -360,14 +358,13 @@ def _lead_reason(
         ]
         if contract_findings:
             records = len(
-                {
-                    (item.get("fixture"), _value(item.get("key")))
-                    for item in contract_findings
-                }
+                {(item.get("fixture"), _value(item.get("key"))) for item in contract_findings}
             )
             return f"{_count_noun_verb(records, 'output record', 'breaks', 'break')} the output contract"
         sentences, _types = _contract_sentences(findings)
-        return sentences[0].rstrip(".") if sentences else _fallback_sentence("unknown", []).rstrip(".")
+        return (
+            sentences[0].rstrip(".") if sentences else _fallback_sentence("unknown", []).rstrip(".")
+        )
     if name == "Downstream System":
         flag_drift = [item for item in findings if item.get("type") == "flag-drift"]
         if flag_drift:
