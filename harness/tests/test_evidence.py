@@ -306,6 +306,57 @@ def test_runtime_d3_location_leads_privacy_without_declared_change(tmp_path):
     assert "Warranty and service read this topic." in markdown
 
 
+def test_log_only_privacy_names_logs_in_baseline_unchanged(tmp_path):
+    finding = {
+        "check": "runtime",
+        "type": "location-in-log",
+        "disposition": "violation",
+        "count": 1,
+        "example": "location",
+    }
+    evidence, _markdown_text = _pack(
+        tmp_path,
+        _validation({"Privacy": "red"}, {"Privacy": [finding]}),
+    )
+
+    assert evidence["summary"]["baseline_unchanged"] == (
+        "No declared change. The Processor Manifest matches the Baseline, but its logs do not "
+        "(see What failed)."
+    )
+
+
+def test_output_and_log_privacy_name_both_in_baseline_unchanged(tmp_path):
+    findings = [
+        {
+            "check": "runtime",
+            "type": "location-in-output",
+            "disposition": "violation",
+            "topic": "vehicle.charging.sessions",
+            "field": "end_location",
+            "fixture": "01-normal",
+            "count": 1,
+            "message": "field end_location, Baseline unchanged",
+        },
+        {
+            "check": "runtime",
+            "type": "location-in-log",
+            "disposition": "violation",
+            "count": 1,
+            "example": "location",
+        },
+    ]
+    evidence, _markdown_text = _pack(
+        tmp_path,
+        _validation({"Privacy": "red"}, {"Privacy": findings}),
+        processor="charging-session",
+    )
+
+    assert evidence["summary"]["baseline_unchanged"] == (
+        "No declared change. The Processor Manifest matches the Baseline, but its output and "
+        "logs do not (see What failed)."
+    )
+
+
 def test_manifest_d3_location_appears_as_baseline_change(tmp_path):
     root = tmp_path / "repo"
     manifests = root / "manifests"
