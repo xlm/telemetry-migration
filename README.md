@@ -237,6 +237,10 @@ The Evidence Pack is written to
 `evidence/<processor>/<short-sha>/evidence.json`. Raw Processor output,
 DLQ records, and logs, including `<fixture>.stdout.log` and
 `<fixture>.stderr.log`, are under `target/gate/<processor>/`.
+The pack opens with a headline saying whether it is ready or not ready for
+human review, a five-step strip, what changed, what failed, and residual
+uncertainties. The full technical record stays in a closed Reviewer detail.
+The `summary` in `evidence.json` is its machine-readable twin.
 
 A Harness finding such as
 `changed CS-00000001 event_count: Golden 4, Processor 5` reports Drift:
