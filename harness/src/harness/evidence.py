@@ -218,14 +218,30 @@ def _summary(evidence: dict) -> dict:
         for finding in evidence["change_assessment"]
         if finding.get("type") != "version-change"
     ]
-    runtime_privacy = any(finding.get("check") == "runtime" for finding in privacy_findings)
+    runtime_privacy_types = {
+        finding.get("type")
+        for finding in privacy_findings
+        if finding.get("check") == "runtime"
+    }
     baseline_unchanged = None
     if not baseline_changes:
-        baseline_unchanged = (
-            "No declared change. The Processor Manifest matches the Baseline, but the output does not (see What failed)."
-            if runtime_privacy
-            else "No change to what data is read, derived, sent, logged or kept."
-        )
+        if runtime_privacy_types:
+            log_types = {"location-in-log", "raw-vehicle-id-in-log"}
+            has_logs = bool(runtime_privacy_types & log_types)
+            has_output = bool(runtime_privacy_types - log_types)
+            difference = (
+                "output and logs do"
+                if has_output and has_logs
+                else "logs do"
+                if has_logs
+                else "output does"
+            )
+            baseline_unchanged = (
+                "No declared change. The Processor Manifest matches the Baseline, "
+                f"but its {difference} not (see What failed)."
+            )
+        else:
+            baseline_unchanged = "No change to what data is read, derived, sent, logged or kept."
     failures = []
     for name in LEAD_ORDER:
         if statuses[name] != "red":
