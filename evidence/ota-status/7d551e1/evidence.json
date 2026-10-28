@@ -10,14 +10,14 @@
     "base": "HEAD",
     "baseline_manifest_version": 1,
     "branch": "devin/1793147821-evidence-pack-headline",
-    "commit_url": "https://github.com/xlm/telemetry-migration/commit/7ac4129088fee0279b684a84d8966e88c21328a2",
+    "commit_url": "https://github.com/xlm/telemetry-migration/commit/7d551e183e1b98eadf387294d2085a4f5b3f0d7c",
     "pr_number": null,
     "processor": "ota-status",
     "processor_manifest_version": 1,
     "reproduce_command": "make gate PROCESSOR=ota-status BASE=HEAD",
-    "sha": "7ac4129088fee0279b684a84d8966e88c21328a2",
-    "short_sha": "7ac4129",
-    "timestamp_utc": "2026-10-28T00:54:54.587267Z",
+    "sha": "7d551e183e1b98eadf387294d2085a4f5b3f0d7c",
+    "short_sha": "7d551e1",
+    "timestamp_utc": "2026-10-28T01:01:24.593407Z",
     "worktree_dirty": false
   },
   "inventory": {
