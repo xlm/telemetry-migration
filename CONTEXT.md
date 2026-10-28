@@ -21,8 +21,12 @@ An application (service, warranty, OTA) that reads a Job's or Processor's output
 _Avoid_: Consumer (collides with Kafka consumer group), client, subscriber
 
 **Evidence Pack**:
-The generated per-Migration artefact that a human privacy or engineering reviewer reads to decide whether the Migration stays within the approved Baseline.
+The generated per-Migration artefact that a human privacy or engineering reviewer reads to decide whether the Migration stays within the approved Baseline. Its first screen also answers, for engineering leadership, one question: can this Migration go to human review, and if not, what blocks it? It never says the Migration is approved or safe.
 _Avoid_: Privacy review (that is the human act, which the pack informs but does not replace), report, audit
+
+**Residual uncertainty**:
+Something a green Gate does not show, such as behaviour no fixture exercises. Every Evidence Pack, green or red, states them, and names what covers one only when that cover exists.
+_Avoid_: Caveat, known issue, limitation (limitations of a Processor belong in its characterisation)
 
 ## Processing
 
