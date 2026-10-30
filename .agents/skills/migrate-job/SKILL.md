@@ -9,7 +9,7 @@ triggers: ["user"]
 
 The Job is `jobs/$1/`. Its Processor scaffold is `processors/$1/`. Its Baseline is `manifests/$1.job.yaml`. Read `CONTEXT.md` and `AGENTS.md` before anything else.
 
-Resolve the arguments before running commands. `$1` is the Job name. `TARGET_BRANCH` is the second argument when supplied, otherwise the literal `main`. Substitute that resolved branch name for `<TARGET_BRANCH>` below, never an empty `$2` or an unset shell variable. Fetch `origin/<TARGET_BRANCH>` and create your own working branch from it. Never push to the target branch. If the Processor is already implemented on that base, report instead of replacing it with a scaffold. For the live demo, resolve `TARGET_BRANCH` to `demo/live-migration` explicitly.
+Resolve the arguments before running commands. `$1` is the Job name. `TARGET_BRANCH` is the second argument when supplied, otherwise the literal `main`. Substitute that resolved branch name for `<TARGET_BRANCH>` below, never an empty `$2` or an unset shell variable. Fetch `origin/<TARGET_BRANCH>` and create your own working branch from it. Never push to the target branch. If the Processor is already implemented on that base, report instead of replacing it with a scaffold.
 
 ## 1. Characterise
 
@@ -40,7 +40,7 @@ Update `manifests/$1.processor.yaml` to describe exactly what the Processor read
 
 ## 5. Gate
 
-Run `cargo test --manifest-path processors/Cargo.toml -p $1`, `make fmt` and `make lint`, then commit the implementation and characterisation. Run `make gate PROCESSOR=$1 BASE=origin/<TARGET_BRANCH>` from the clean commit so the Evidence Pack identifies the tested code. For example, an omitted target for charging-session gives `make gate PROCESSOR=charging-session BASE=origin/main`. The demo gives `make gate PROCESSOR=charging-session BASE=origin/demo/live-migration`. For every Drift, go back to the Scala, find what it actually does, fix the Rust, commit and re-run. Never touch `goldens/`, `fixtures/`, `contracts/`, `harness/`, `jobs/`, `downstream/`, `.github/`, `schemas/`, `manifests/classification.yaml` or the Baseline.
+Run `cargo test --manifest-path processors/Cargo.toml -p $1`, `make fmt` and `make lint`, then commit the implementation and characterisation. Run `make gate PROCESSOR=$1 BASE=origin/<TARGET_BRANCH>` from the clean commit so the Evidence Pack identifies the tested code. For example, an omitted target for charging-session gives `make gate PROCESSOR=charging-session BASE=origin/main`. For every Drift, go back to the Scala, find what it actually does, fix the Rust, commit and re-run. Never touch `goldens/`, `fixtures/`, `contracts/`, `harness/`, `jobs/`, `downstream/`, `.github/`, `schemas/`, `manifests/classification.yaml` or the Baseline.
 
 ## 6. PR
 

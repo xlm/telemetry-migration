@@ -177,27 +177,54 @@ cached, the runs took 15 seconds for ota-status and 20 seconds for
 charging-session here. First runs may take longer.
 
 `battery-health` is a small stateless Job that clamps state-of-health to
-0-100 and classifies it at 60 and 80 percent. Its Rust Processor and
-`charging-session` are intentionally unfinished migration exercises.
+0-100 and classifies it at 60 and 80 percent. All three Rust Processor
+cores are intentionally unfinished migration exercises.
 `make doctor` verifies every registered Processor has its contract,
 Baseline and Rust crate, and compiles all three Jobs and Processors.
 
 ### Live migration demo
 
-Use the frozen `demo/live-migration` branch, not `main`. Only that branch
-replaces the working `ota-status` core with a scaffold. Start a Devin on
-that branch to migrate `ota-status`, capture the procedure as the repo's
-[`migrate-job` skill](.agents/skills/migrate-job/SKILL.md), then have a
-supervising Devin launch one child each for `charging-session` and
-`battery-health` using that same skill. All three migration PRs target
-`demo/live-migration`. Do not merge them during rehearsals or push to the
-demo base. Each new session starts from the same unfinished exercises.
+Use `main` as the starting branch and PR target. Start a Devin there to
+migrate `ota-status`, then review and show the reusable
+[`migrate-job` skill](.agents/skills/migrate-job/SKILL.md). During the live
+demo, a human may merge OTA after its green Gate and review. Start a
+supervising Devin from the updated `main` and launch exactly two children:
 
-The skill accepts a Job name and optional PR target branch. Omit the
-branch for normal migrations into `main`. For this demo, always supply
-`demo/live-migration`, including `BASE=origin/demo/live-migration` when
-running the Gate. The existing `demo/charging-session-migrated` branch is
-an older fallback, not the starting state for this demo.
+- `charging-session`: follow the skill normally and produce a green PR.
+- `battery-health`: use the skill for characterisation, implementation and
+  tests, with an explicit demo-only exception for a synthetic negative
+  test. Deliberately log a raw fixture `vehicle_id` in the Processor's
+  stderr. Require Harness, Contract and Path check green, Downstream
+  System skipped, and Privacy red with `raw-vehicle-id-in-log`. Publish
+  the red Evidence Pack in a clearly labelled, do-not-merge PR and stop.
+  Do not remediate this intentional failure or change the normal skill.
+
+Each child starts from the same recorded `main` commit, owns its own
+branch, and changes only its Processor directory and Processor Manifest.
+Every migration PR targets `main`, with `BASE=origin/main` for the Gate.
+The skill already defaults to `main`. Never push directly to `main`.
+The supervisor reports charging's green verdict and battery's expected
+privacy-blocked verdict separately, not overall migration success.
+An unrelated failure or a scaffold crash does not count as the negative
+test. All data used for it must be synthetic fixture data.
+
+For practice, merge no PRs. During the live demo, a human may merge OTA
+and charging after review and green Gates. Battery must remain unmerged.
+Before the first run, tag the prepared `main` commit with all three cores
+unfinished. After live merges, repeating the demo requires restoring that
+tagged starting point. A force reset requires explicit human approval,
+branch rules that permit it, no active sessions, a check for unrelated
+work, and `--force-with-lease`. Never weaken branch protection. Resetting
+the branch does not erase merged PRs or CI history. Agents must not merge,
+tag, or reset automatically. The old `demo/live-migration` and
+`demo/charging-session-migrated` branches are not used by this storyline.
+
+The scaffold-preparation PR intentionally fails OTA's Harness check and
+the existing OTA integration test in `make test`. Keep that test intact
+for the live migration to satisfy. These failures are not the
+privacy-negative example and not a completed Migration.
+Do not bypass the Gate to land preparation. It needs an approved
+repository preparation process before `main` becomes the starting point.
 
 Run Gate for one Processor. `BASE` changes the comparison base for the Path
 check, and `BIN` supplies a Processor binary and skips the Cargo build:
@@ -310,8 +337,8 @@ processors/target/release/ota-status \
 
 The output and DLQ files contain JSONL records. The log file contains JSON
 log lines, with `vehicle_id` represented only by its 12-character hash.
-`charging-session` is currently a scaffold and panics with `not yet
-implemented` until its Job is migrated.
+All three Processor cores are scaffolds and panic with `not yet
+implemented` until their Jobs are migrated.
 
 ## Repository map
 
