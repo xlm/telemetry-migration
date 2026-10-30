@@ -36,7 +36,11 @@ pub fn process(event: &OtaEvent) -> Result<OtaStatusRecord, DlqRecord> {
         vehicle_id: vehicle_id.clone(),
         campaign_id: campaign_id.clone(),
         status,
-        progress_pct: progress_pct.clamp(0.0, 100.0),
+        progress_pct: if progress_pct <= 0.0 {
+            0.0
+        } else {
+            progress_pct.min(100.0)
+        },
         event_ts,
         schema_version: "1".to_owned(),
     })
@@ -105,6 +109,12 @@ mod tests {
                 classify(&line("\"dl\"", input, "0")).unwrap().progress_pct,
                 expected
             );
+        }
+        for input in ["-0.0", "-0"] {
+            assert!(classify(&line("\"dl\"", input, "0"))
+                .unwrap()
+                .progress_pct
+                .is_sign_positive());
         }
         assert_eq!(
             classify(&line("\" dl\"", "0", "0")).unwrap_err().reason,
