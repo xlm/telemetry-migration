@@ -1,0 +1,33 @@
+name: battery-health
+kind: processor
+version: 1
+inputs:
+  - topic: vehicle.battery.events
+    fields:
+      - {name: event_id, classification: internal-operational, purpose: health-projection}
+      - {name: vehicle_id, classification: vehicle-identifying, purpose: health-projection}
+      - {name: battery_id, classification: internal-operational, purpose: health-projection}
+      - {name: soh_pct, classification: internal-operational, purpose: health-classification}
+      - {name: event_ts, classification: internal-operational, purpose: health-projection}
+      - {name: schema_version, classification: public, purpose: contract-version}
+outputs:
+  - topic: vehicle.battery.health
+    downstream: [maintenance]
+    fields:
+      - {name: event_id, classification: internal-operational, derived_from: [event_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: battery_id, classification: internal-operational, derived_from: [battery_id]}
+      - {name: soh_pct, classification: internal-operational, derived_from: [soh_pct]}
+      - {name: health, classification: internal-operational, derived_from: [soh_pct]}
+      - {name: event_ts, classification: internal-operational, derived_from: [event_ts]}
+      - {name: schema_version, classification: public, derived_from: [schema_version]}
+  - topic: vehicle.battery.dlq
+    downstream: [ops]
+    fields:
+      - {name: event_id, classification: internal-operational, derived_from: [event_id]}
+      - {name: vehicle_id, classification: vehicle-identifying, derived_from: [vehicle_id]}
+      - {name: reason, classification: internal-operational, derived_from: [soh_pct]}
+logging:
+  forbidden: [location]
+  hashed: [vehicle_id]
+retention_days: 30

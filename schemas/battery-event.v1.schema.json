@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Battery health event",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "pattern": "^VH-[0-9a-fA-F]{8}$",
+      "maxLength": 11
+    },
+    "battery_id": {
+      "type": "string"
+    },
+    "soh_pct": {
+      "type": "number"
+    },
+    "event_ts": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "schema_version": {
+      "const": "1"
+    }
+  },
+  "required": [
+    "event_id",
+    "vehicle_id",
+    "battery_id",
+    "soh_pct",
+    "event_ts",
+    "schema_version"
+  ]
+}

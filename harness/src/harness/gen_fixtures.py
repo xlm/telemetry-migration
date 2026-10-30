@@ -32,6 +32,7 @@ CHARGING_SCENARIOS = (
     "11-replay",
 )
 OTA_SCENARIOS = ("01-normal", "02-variant-status-strings", "03-malformed")
+BATTERY_SCENARIOS = ("01-normal", "02-thresholds", "03-malformed")
 
 
 def event_id(rng: random.Random) -> str:
@@ -208,12 +209,43 @@ def ota_fixture(scenario: str, rng: random.Random) -> list[dict]:
     return events
 
 
+def battery_fixture(scenario: str, rng: random.Random) -> list[dict]:
+    levels = [95.5, 72.25, 45.0]
+    if scenario == "02-thresholds":
+        levels = [-5, 0, 59.999, 60, 79.999, 80, 100, 105]
+    elif scenario == "03-malformed":
+        levels = [90] * 8
+    events = [
+        {
+            "event_id": event_id(rng),
+            "vehicle_id": f"VH-{rng.getrandbits(32):08x}",
+            "battery_id": f"BAT-{index:08x}",
+            "soh_pct": level,
+            "event_ts": BASE_TS + index * MINUTE,
+            "schema_version": "1",
+        }
+        for index, level in enumerate(levels)
+    ]
+    if scenario == "03-malformed":
+        del events[0]["event_id"]
+        del events[1]["vehicle_id"]
+        events[2]["battery_id"] = 123
+        events[3]["soh_pct"] = "90"
+        events[4]["soh_pct"] = None
+        events[5]["event_ts"] = 1.5
+        events[6]["event_ts"] = 2**63
+        del events[7]["schema_version"]
+        events[7]["location"] = {"lat": 12.0, "lon": 34.0}
+    return events
+
+
 def generate(output: Path, seed: int = DEFAULT_SEED) -> None:
-    """Write only the fourteen fixture files, in stable JSONL encoding."""
+    """Write the seventeen fixture files in stable JSONL encoding."""
     rng = random.Random(seed)
     for name, scenarios, build in (
         ("charging-session", CHARGING_SCENARIOS, charging_fixture),
         ("ota-status", OTA_SCENARIOS, ota_fixture),
+        ("battery-health", BATTERY_SCENARIOS, battery_fixture),
     ):
         directory = output / name
         directory.mkdir(parents=True, exist_ok=True)
@@ -230,7 +262,7 @@ def generate(output: Path, seed: int = DEFAULT_SEED) -> None:
 @click.option("--seed", default=DEFAULT_SEED, show_default=True, type=int)
 @click.option("--output", default=ROOT / "fixtures", type=click.Path(path_type=Path))
 def main(seed: int, output: Path) -> None:
-    """Regenerate the synthetic charging-session and OTA-status fixtures."""
+    """Regenerate the synthetic Job fixtures."""
     generate(output, seed)
 
 

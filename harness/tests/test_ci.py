@@ -9,7 +9,7 @@ from click.testing import CliRunner
 from harness import ci
 from harness.ci import changed_paths, processors_to_gate
 
-ALL = ["charging-session", "ota-status"]
+ALL = ["battery-health", "charging-session", "ota-status"]
 
 
 @pytest.mark.parametrize(
@@ -17,10 +17,12 @@ ALL = ["charging-session", "ota-status"]
     [
         ([], []),
         (["processors/ota-status/src/core.rs"], ["ota-status"]),
+        (["processors/battery-health/src/core.rs"], ["battery-health"]),
+        (["manifests/battery-health.processor.yaml"], ["battery-health"]),
         (["manifests/charging-session.processor.yaml"], ["charging-session"]),
         (
             ["processors/ota-status/src/core.rs", "processors/charging-session/src/core.rs"],
-            ALL,
+            ["charging-session", "ota-status"],
         ),
         (["README.md", "docs/cutover.md", "AGENTS.md", ".agents/skills/x/SKILL.md"], []),
         (["evidence/ota-status/abc1234/evidence.md"], []),

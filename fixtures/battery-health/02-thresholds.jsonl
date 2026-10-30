@@ -1,0 +1,8 @@
+{"battery_id":"BAT-00000000","event_id":"a3033f89-4b8d-45c7-959a-86eb4dd57e18","event_ts":1792972800000,"schema_version":"1","soh_pct":-5,"vehicle_id":"VH-48147ec1"}
+{"battery_id":"BAT-00000001","event_id":"f7a3cada-d427-4b45-a13c-c5a34b6be9bc","event_ts":1792972860000,"schema_version":"1","soh_pct":0,"vehicle_id":"VH-98add3de"}
+{"battery_id":"BAT-00000002","event_id":"a6cdb8a2-cb4e-4b51-98f9-7713fb9b2bfd","event_ts":1792972920000,"schema_version":"1","soh_pct":59.999,"vehicle_id":"VH-bb82fb85"}
+{"battery_id":"BAT-00000003","event_id":"481aa8e6-3cea-4453-8994-7824fc228f84","event_ts":1792972980000,"schema_version":"1","soh_pct":60,"vehicle_id":"VH-c19b78ee"}
+{"battery_id":"BAT-00000004","event_id":"d9face72-0d32-40cf-8bd3-f3256ac1e5aa","event_ts":1792973040000,"schema_version":"1","soh_pct":79.999,"vehicle_id":"VH-cbb03365"}
+{"battery_id":"BAT-00000005","event_id":"e2c75209-70b7-473a-85d8-d8907d0ece5b","event_ts":1792973100000,"schema_version":"1","soh_pct":80,"vehicle_id":"VH-c05589ce"}
+{"battery_id":"BAT-00000006","event_id":"b8e62fe9-d742-4711-9e50-8cc2c1586477","event_ts":1792973160000,"schema_version":"1","soh_pct":100,"vehicle_id":"VH-c3a391df"}
+{"battery_id":"BAT-00000007","event_id":"26be40da-5209-437c-8730-3e2b38fe2975","event_ts":1792973220000,"schema_version":"1","soh_pct":105,"vehicle_id":"VH-ac64f352"}
