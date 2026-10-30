@@ -1,4 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::de::{DeserializeOwned, IgnoredAny, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -31,30 +33,96 @@ pub struct Location {
     pub lon: f64,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct ChargingEvent {
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub event_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub vehicle_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub session_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub event_ts: Option<i64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub ingest_ts: Option<i64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub seq: Option<i64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub charging_state: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub soc_pct: Option<f64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub power_kw: Option<f64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub location: Option<Location>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub schema_version: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for ChargingEvent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ChargingEventVisitor;
+
+        impl<'de> Visitor<'de> for ChargingEventVisitor {
+            type Value = ChargingEvent;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a charging event object")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut event_id = None;
+                let mut vehicle_id = None;
+                let mut session_id = None;
+                let mut event_ts = None;
+                let mut ingest_ts = None;
+                let mut seq = None;
+                let mut charging_state = None;
+                let mut soc_pct = None;
+                let mut power_kw = None;
+                let mut location = None;
+                let mut schema_version = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "event_id" => event_id = Some(map.next_value::<serde_json::Value>()?),
+                        "vehicle_id" => vehicle_id = Some(map.next_value::<serde_json::Value>()?),
+                        "session_id" => session_id = Some(map.next_value::<serde_json::Value>()?),
+                        "event_ts" => event_ts = Some(map.next_value::<serde_json::Value>()?),
+                        "ingest_ts" => ingest_ts = Some(map.next_value::<serde_json::Value>()?),
+                        "seq" => seq = Some(map.next_value::<serde_json::Value>()?),
+                        "charging_state" => {
+                            charging_state = Some(map.next_value::<serde_json::Value>()?)
+                        }
+                        "soc_pct" => soc_pct = Some(map.next_value::<serde_json::Value>()?),
+                        "power_kw" => power_kw = Some(map.next_value::<serde_json::Value>()?),
+                        "location" => location = Some(map.next_value::<serde_json::Value>()?),
+                        "schema_version" => {
+                            schema_version = Some(map.next_value::<serde_json::Value>()?)
+                        }
+                        _ => {
+                            map.next_value::<IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                Ok(ChargingEvent {
+                    event_id: decode(event_id),
+                    vehicle_id: decode(vehicle_id),
+                    session_id: decode(session_id),
+                    event_ts: decode(event_ts),
+                    ingest_ts: decode(ingest_ts),
+                    seq: decode(seq),
+                    charging_state: decode(charging_state),
+                    soc_pct: decode(soc_pct),
+                    power_kw: decode(power_kw),
+                    location: decode(location),
+                    schema_version: decode(schema_version),
+                })
+            }
+        }
+
+        deserializer.deserialize_map(ChargingEventVisitor)
+    }
+}
+
+fn decode<T: DeserializeOwned>(value: Option<serde_json::Value>) -> Option<T> {
+    value.and_then(|value| serde_json::from_value(value).ok())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -154,6 +222,66 @@ mod tests {
         let event: ChargingEvent = serde_json::from_str("{}").expect("missing fields");
 
         assert_eq!(event, ChargingEvent::default());
+    }
+
+    #[test]
+    fn charging_event_requires_an_object() {
+        for input in ["[]", r#""text""#, "42", "null"] {
+            assert!(
+                serde_json::from_str::<ChargingEvent>(input).is_err(),
+                "{input} should not deserialize as an object"
+            );
+        }
+    }
+
+    #[test]
+    fn duplicate_keys_keep_the_last_raw_value() {
+        let earlier_wrong_later_valid: ChargingEvent =
+            serde_json::from_str(r#"{"event_id":7,"event_id":"last","seq":1.0,"seq":2}"#)
+                .expect("duplicate object keys");
+        assert_eq!(earlier_wrong_later_valid.event_id.as_deref(), Some("last"));
+        assert_eq!(earlier_wrong_later_valid.seq, Some(2));
+
+        let earlier_valid_later_wrong: ChargingEvent = serde_json::from_str(
+            r#"{"event_id":"first","event_id":7,"soc_pct":25,"soc_pct":"wrong"}"#,
+        )
+        .expect("duplicate object keys");
+        assert_eq!(earlier_valid_later_wrong.event_id, None);
+        assert_eq!(earlier_valid_later_wrong.soc_pct, None);
+    }
+
+    #[test]
+    fn wrong_types_are_absent_and_known_overflow_is_corrupt() {
+        let event: ChargingEvent =
+            serde_json::from_str(r#"{"soc_pct":"25","seq":1.0}"#).expect("wrong-typed fields");
+        assert_eq!(event.soc_pct, None);
+        assert_eq!(event.seq, None);
+
+        assert!(
+            serde_json::from_str::<ChargingEvent>(r#"{"soc_pct":1e400}"#).is_err(),
+            "overflow in a known field should reject the object"
+        );
+        assert!(
+            serde_json::from_str::<ChargingEvent>(r#"{"location":{"lat":1e400,"lon":2}}"#).is_err(),
+            "overflow in a nested known field should reject the object"
+        );
+    }
+
+    #[test]
+    fn malformed_optional_location_is_absent() {
+        let event: ChargingEvent =
+            serde_json::from_str(r#"{"location":{"lat":"40.0","lon":-74.0}}"#)
+                .expect("wrong-typed nested field");
+
+        assert_eq!(event.location, None);
+    }
+
+    #[test]
+    fn overflow_under_an_unknown_key_is_ignored() {
+        let event: ChargingEvent = serde_json::from_str(r#"{"event_id":"e","extra":1e400}"#)
+            .expect("unknown value is ignored");
+
+        assert_eq!(event.event_id.as_deref(), Some("e"));
     }
 
     #[test]
