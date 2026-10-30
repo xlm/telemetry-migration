@@ -15,6 +15,15 @@ Legacy Scala/Spark Jobs under `jobs/` are being replaced one at a time by Rust P
 
 `README.md` is written for a maintainer who does not know Scala, Rust or Spark and runs everything on macOS. If your change adds or changes a tool, dependency, environment variable, Makefile target or first-run step, update `README.md` "Local setup (macOS)" or "Running" and extend `make doctor` in the same PR. Do not assume the reader knows what is obvious to a Rust or Scala developer.
 
+Exception: a Processor may reuse a Rust crate version already in
+`processors/Cargo.lock` without README or doctor edits when the lockfile,
+toolchain, system dependencies and setup steps stay unchanged. This includes
+moving a dev-dependency to a runtime dependency or enabling crate features
+within those limits. Edit only that Processor's own `Cargo.toml`, not the
+shared workspace manifest, and explain the reuse in the PR. If a Migration
+needs a setup change outside its per-Processor scope, stop and request
+platform preparation instead.
+
 ## Gate inputs are read-only
 
 These paths are the inputs to the Gate. They are owned by the platform and privacy teams and must not be modified by a Migration:
