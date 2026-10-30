@@ -42,6 +42,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         match core::process(&event) {
             Ok(record) => {
                 output.write_record(&record)?;
+                eprintln!(
+                    "battery-health debug: accepted vehicle_id={}",
+                    record.vehicle_id
+                );
                 log_record(&LogRecord::new(
                     "battery-health",
                     LogEvent::EventAccepted,
