@@ -1,21 +1,73 @@
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::value::RawValue;
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct OtaEvent {
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub event_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub vehicle_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub campaign_id: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub status: Option<String>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub progress_pct: Option<f64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub event_ts: Option<i64>,
-    #[serde(default, deserialize_with = "telemetry_core::lenient::lenient")]
     pub schema_version: Option<String>,
+}
+
+fn non_finite(raw: &RawValue) -> bool {
+    let text = raw.get();
+    match text.as_bytes()[0] {
+        b'{' => serde_json::from_str::<HashMap<String, Box<RawValue>>>(text)
+            .is_ok_and(|fields| fields.values().any(|value| non_finite(value))),
+        b'[' => serde_json::from_str::<Vec<Box<RawValue>>>(text)
+            .is_ok_and(|values| values.iter().any(|value| non_finite(value))),
+        b'-' | b'0'..=b'9' if text.contains(['.', 'e', 'E']) => {
+            text.parse::<f64>().is_ok_and(|value| !value.is_finite())
+        }
+        _ => false,
+    }
+}
+
+impl<'de> Deserialize<'de> for OtaEvent {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let fields = HashMap::<String, Box<RawValue>>::deserialize(deserializer)?;
+        let names = [
+            "event_id",
+            "vehicle_id",
+            "campaign_id",
+            "status",
+            "progress_pct",
+            "event_ts",
+            "schema_version",
+        ];
+        if names
+            .iter()
+            .filter_map(|name| fields.get(*name))
+            .any(|value| non_finite(value))
+        {
+            return Ok(Self::default());
+        }
+        let string = |name| {
+            fields
+                .get(name)
+                .and_then(|value| serde_json::from_str(value.get()).ok())
+        };
+        let progress_pct = fields
+            .get("progress_pct")
+            .and_then(|value| value.get().parse::<f64>().ok());
+        let event_ts = fields
+            .get("event_ts")
+            .and_then(|value| value.get().parse::<i64>().ok());
+        Ok(Self {
+            event_id: string("event_id"),
+            vehicle_id: string("vehicle_id"),
+            campaign_id: string("campaign_id"),
+            status: string("status"),
+            progress_pct,
+            event_ts,
+            schema_version: string("schema_version"),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
