@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 clap = "4"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["raw_value"] }
 telemetry-core = { path = "../telemetry-core" }

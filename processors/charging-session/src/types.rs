@@ -1,5 +1,7 @@
-use serde::de::{DeserializeOwned, IgnoredAny, MapAccess, Visitor};
+use serde::de::{DeserializeOwned, Error as DeError, IgnoredAny, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::value::RawValue;
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -66,40 +68,48 @@ impl<'de> Deserialize<'de> for ChargingEvent {
             where
                 A: MapAccess<'de>,
             {
-                let mut event_id = None;
-                let mut vehicle_id = None;
-                let mut session_id = None;
-                let mut event_ts = None;
-                let mut ingest_ts = None;
-                let mut seq = None;
-                let mut charging_state = None;
-                let mut soc_pct = None;
-                let mut power_kw = None;
-                let mut location = None;
-                let mut schema_version = None;
+                let mut event_id: Option<Box<RawValue>> = None;
+                let mut vehicle_id: Option<Box<RawValue>> = None;
+                let mut session_id: Option<Box<RawValue>> = None;
+                let mut event_ts: Option<Box<RawValue>> = None;
+                let mut ingest_ts: Option<Box<RawValue>> = None;
+                let mut seq: Option<Box<RawValue>> = None;
+                let mut charging_state: Option<Box<RawValue>> = None;
+                let mut soc_pct: Option<Box<RawValue>> = None;
+                let mut power_kw: Option<Box<RawValue>> = None;
+                let mut location: Option<Box<RawValue>> = None;
+                let mut schema_version: Option<Box<RawValue>> = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
-                        "event_id" => event_id = Some(map.next_value::<serde_json::Value>()?),
-                        "vehicle_id" => vehicle_id = Some(map.next_value::<serde_json::Value>()?),
-                        "session_id" => session_id = Some(map.next_value::<serde_json::Value>()?),
-                        "event_ts" => event_ts = Some(map.next_value::<serde_json::Value>()?),
-                        "ingest_ts" => ingest_ts = Some(map.next_value::<serde_json::Value>()?),
-                        "seq" => seq = Some(map.next_value::<serde_json::Value>()?),
-                        "charging_state" => {
-                            charging_state = Some(map.next_value::<serde_json::Value>()?)
-                        }
-                        "soc_pct" => soc_pct = Some(map.next_value::<serde_json::Value>()?),
-                        "power_kw" => power_kw = Some(map.next_value::<serde_json::Value>()?),
-                        "location" => location = Some(map.next_value::<serde_json::Value>()?),
-                        "schema_version" => {
-                            schema_version = Some(map.next_value::<serde_json::Value>()?)
-                        }
+                        "event_id" => event_id = Some(map.next_value()?),
+                        "vehicle_id" => vehicle_id = Some(map.next_value()?),
+                        "session_id" => session_id = Some(map.next_value()?),
+                        "event_ts" => event_ts = Some(map.next_value()?),
+                        "ingest_ts" => ingest_ts = Some(map.next_value()?),
+                        "seq" => seq = Some(map.next_value()?),
+                        "charging_state" => charging_state = Some(map.next_value()?),
+                        "soc_pct" => soc_pct = Some(map.next_value()?),
+                        "power_kw" => power_kw = Some(map.next_value()?),
+                        "location" => location = Some(map.next_value()?),
+                        "schema_version" => schema_version = Some(map.next_value()?),
                         _ => {
                             map.next_value::<IgnoredAny>()?;
                         }
                     }
                 }
+
+                let event_id = resolve_option::<A::Error>(event_id)?;
+                let vehicle_id = resolve_option::<A::Error>(vehicle_id)?;
+                let session_id = resolve_option::<A::Error>(session_id)?;
+                let event_ts = resolve_option::<A::Error>(event_ts)?;
+                let ingest_ts = resolve_option::<A::Error>(ingest_ts)?;
+                let seq = resolve_option::<A::Error>(seq)?;
+                let charging_state = resolve_option::<A::Error>(charging_state)?;
+                let soc_pct = resolve_option::<A::Error>(soc_pct)?;
+                let power_kw = resolve_option::<A::Error>(power_kw)?;
+                let location = resolve_option::<A::Error>(location)?;
+                let schema_version = resolve_option::<A::Error>(schema_version)?;
 
                 Ok(ChargingEvent {
                     event_id: decode(event_id),
@@ -119,6 +129,44 @@ impl<'de> Deserialize<'de> for ChargingEvent {
 
         deserializer.deserialize_map(ChargingEventVisitor)
     }
+}
+
+#[derive(Debug)]
+struct NonFinite;
+
+impl fmt::Display for NonFinite {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("known field contains a non-finite number")
+    }
+}
+
+fn resolve(raw: &RawValue) -> Result<serde_json::Value, NonFinite> {
+    let text = raw.get();
+    if text.trim_start().starts_with('{') {
+        let fields =
+            serde_json::from_str::<HashMap<String, Box<RawValue>>>(text).map_err(|_| NonFinite)?;
+        let mut object = serde_json::Map::new();
+        for (key, value) in fields {
+            object.insert(key, resolve(&value)?);
+        }
+        Ok(serde_json::Value::Object(object))
+    } else if text.trim_start().starts_with('[') {
+        let values = serde_json::from_str::<Vec<Box<RawValue>>>(text).map_err(|_| NonFinite)?;
+        values
+            .into_iter()
+            .map(|value| resolve(&value))
+            .collect::<Result<Vec<_>, _>>()
+            .map(serde_json::Value::Array)
+    } else {
+        serde_json::from_str(text).map_err(|_| NonFinite)
+    }
+}
+
+fn resolve_option<E>(raw: Option<Box<RawValue>>) -> Result<Option<serde_json::Value>, E>
+where
+    E: DeError,
+{
+    raw.map(|raw| resolve(&raw).map_err(E::custom)).transpose()
 }
 
 fn decode<T: DeserializeOwned>(value: Option<serde_json::Value>) -> Option<T> {
@@ -248,6 +296,46 @@ mod tests {
         .expect("duplicate object keys");
         assert_eq!(earlier_valid_later_wrong.event_id, None);
         assert_eq!(earlier_valid_later_wrong.soc_pct, None);
+    }
+
+    #[test]
+    fn non_finite_check_uses_the_last_top_level_duplicate_value() {
+        let event: ChargingEvent = serde_json::from_str(r#"{"power_kw":1e400,"power_kw":5.0}"#)
+            .expect("earlier overflow is overwritten");
+        assert_eq!(event.power_kw, Some(5.0));
+
+        assert!(
+            serde_json::from_str::<ChargingEvent>(r#"{"power_kw":5.0,"power_kw":1e400}"#).is_err(),
+            "final overflow should reject the object"
+        );
+    }
+
+    #[test]
+    fn nested_duplicate_keys_keep_the_last_value_before_non_finite_check() {
+        let event: ChargingEvent =
+            serde_json::from_str(r#"{"location":{"lat":1e400,"lat":1.0,"lon":2.0}}"#)
+                .expect("earlier nested overflow is overwritten");
+
+        assert_eq!(event.location, Some(Location { lat: 1.0, lon: 2.0 }));
+    }
+
+    #[test]
+    fn non_finite_check_recurses_through_all_values_of_known_fields() {
+        assert!(
+            serde_json::from_str::<ChargingEvent>(
+                r#"{"location":{"lat":1.0,"lon":2.0,"extra":1e400}}"#
+            )
+            .is_err(),
+            "overflow in an extra nested property should reject the object"
+        );
+        assert!(
+            serde_json::from_str::<ChargingEvent>(r#"{"soc_pct":[1e400]}"#).is_err(),
+            "overflow inside a known array should reject the object"
+        );
+
+        let event: ChargingEvent =
+            serde_json::from_str(r#"{"soc_pct":[1.0]}"#).expect("valid array value");
+        assert_eq!(event.soc_pct, None);
     }
 
     #[test]

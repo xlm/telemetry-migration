@@ -14,6 +14,8 @@ Line numbers refer to the Job as of the commit this file was written on.
   A non-finite number under an unknown key is ignored (Job test
   `ChargingSessionSpec.scala`, `overflowInUnknownField`).
 - Duplicate object keys: `readTree` keeps the last value (Jackson default).
+  The non-finite check applies only to the value left after last-wins, at every
+  nesting level.
 - Field typing is exact JSON type, a wrong-typed or null value is absent
   (`RawChargingEvent.scala:85-94`):
   - text fields (`event_id`, `vehicle_id`, `session_id`, `charging_state`,
