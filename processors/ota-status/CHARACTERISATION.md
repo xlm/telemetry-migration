@@ -13,7 +13,7 @@ All references below are to `jobs/ota-status/src/main/scala/example/telemetry/ot
 ## Projection
 
 - Status is lowercased with `Locale.ROOT`, without trimming. `downloading`, `dl`, `download` map to `DOWNLOADING`; `installing`, `inst` to `INSTALLING`; `done`, `complete`, `success`, `succeeded` to `SUCCEEDED`; `failed`, `error` to `FAILED` (lines 186-194).
-- Output copies `event_id`, `vehicle_id`, `campaign_id` and `event_ts`; emits the normalised status; clamps numeric `progress_pct` to [0, 100]; and always emits `schema_version` as the string `1` (lines 150-163). No decimal rounding is specified beyond conversion to `Double` and clamping (lines 160, 173-174).
+- Output copies `event_id`, `vehicle_id`, `campaign_id` and `event_ts`; emits the normalised status; clamps numeric `progress_pct` to [0, 100] with `math.max(0.0, math.min(100.0, _))`, where Java's `max` turns `-0.0` into `0.0`; and always emits `schema_version` as the string `1` (lines 150-163). No decimal rounding is specified beyond conversion to `Double` and clamping (lines 160, 173-174).
 - The Job sorts Golden status files by `event_ts`, then `event_id`, and Golden DLQ files by `event_id` and `vehicle_id` with nulls treated as empty strings, then `reason` (lines 92-112). The Processor's existing wrapper emits each record in input order (`processors/ota-status/src/main.rs:34-67`). The Harness compares status records by key and DLQ entries as a multiset, not by position (`harness/src/harness/diff.py:25-42,97-104`).
 
 ## State and timing
