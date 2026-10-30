@@ -164,14 +164,40 @@ Job and Processor names, these are the Goldens and Gate commands:
 ```sh
 make goldens JOB=ota-status
 make gate PROCESSOR=ota-status
+make goldens JOB=battery-health
+make gate PROCESSOR=battery-health
 ```
 
-`make goldens JOB=ota-status` and `make goldens JOB=charging-session` run the
+`make goldens JOB=ota-status`, `make goldens JOB=charging-session` and
+`make goldens JOB=battery-health` run the
 Job over every `.jsonl` file in `fixtures/<job>/` and rewrite
 `goldens/<job>/`. The generated files are byte-identical across runs when the
 code and fixtures are unchanged. Never edit Goldens by hand. With dependencies
 cached, the runs took 15 seconds for ota-status and 20 seconds for
 charging-session here. First runs may take longer.
+
+`battery-health` is a small stateless Job that clamps state-of-health to
+0-100 and classifies it at 60 and 80 percent. Its Rust Processor and
+`charging-session` are intentionally unfinished migration exercises.
+`make doctor` verifies every registered Processor has its contract,
+Baseline and Rust crate, and compiles all three Jobs and Processors.
+
+### Live migration demo
+
+Use the frozen `demo/live-migration` branch, not `main`. Only that branch
+replaces the working `ota-status` core with a scaffold. Start a Devin on
+that branch to migrate `ota-status`, capture the procedure as the repo's
+[`migrate-job` skill](.agents/skills/migrate-job/SKILL.md), then have a
+supervising Devin launch one child each for `charging-session` and
+`battery-health` using that same skill. All three migration PRs target
+`demo/live-migration`. Do not merge them during rehearsals or push to the
+demo base. Each new session starts from the same unfinished exercises.
+
+The skill accepts a Job name and optional PR target branch. Omit the
+branch for normal migrations into `main`. For this demo, always supply
+`demo/live-migration`, including `BASE=origin/demo/live-migration` when
+running the Gate. The existing `demo/charging-session-migrated` branch is
+an older fallback, not the starting state for this demo.
 
 Run Gate for one Processor. `BASE` changes the comparison base for the Path
 check, and `BIN` supplies a Processor binary and skips the Cargo build:
