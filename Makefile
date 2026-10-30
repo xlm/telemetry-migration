@@ -161,6 +161,7 @@ doctor:
 	printf '%s\n' 'Python dependencies: click, jsonschema, pyyaml'; \
 	uv run --project harness --python $(PYTHON_VERSION) gate --help >/dev/null; printf '%s\n' 'Gate CLI: ok'; \
 	uv run --project harness --python $(PYTHON_VERSION) gate-processors --help >/dev/null; printf '%s\n' 'Gate Processor selector: ok'; \
+	uv run --project harness --python $(PYTHON_VERSION) python -c 'from harness.common import PROCESSORS, ROOT; assert all((ROOT / spec.contract).is_file() and (ROOT / "manifests" / f"{name}.job.yaml").is_file() and (ROOT / "processors" / name / "Cargo.toml").is_file() for name, spec in PROCESSORS.items()); print("Registered Processors:", ", ".join(sorted(PROCESSORS)))'; \
 	rustup --version; \
 	active_toolchain=$$(rustup show active-toolchain); \
 	printf '%s\n' "$$active_toolchain"; \
@@ -204,7 +205,8 @@ goldens:
 	case "$(JOB)" in \
 		ota-status) project=otaStatus;; \
 		charging-session) project=chargingSession;; \
-		*) printf '%s\n' 'usage: make goldens JOB=ota-status|charging-session'; exit 1;; \
+		battery-health) project=batteryHealth;; \
+		*) printf '%s\n' 'usage: make goldens JOB=ota-status|charging-session|battery-health'; exit 1;; \
 	esac; \
 	rm -rf "goldens/$(JOB)" && mkdir -p "goldens/$(JOB)"; \
 	sbt_opts="$${SBT_OPTS:-} $(SBT_REPOSITORY_FLAGS)"; \

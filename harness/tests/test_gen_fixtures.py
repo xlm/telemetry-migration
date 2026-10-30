@@ -9,6 +9,7 @@ import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 from harness.gen_fixtures import (
+    BATTERY_SCENARIOS,
     CHARGING_SCENARIOS,
     DEFAULT_SEED,
     MINUTE,
@@ -45,6 +46,7 @@ def test_regeneration_is_byte_identical(generated, tmp_path):
         for name, scenarios in (
             ("charging-session", CHARGING_SCENARIOS),
             ("ota-status", OTA_SCENARIOS),
+            ("battery-health", BATTERY_SCENARIOS),
         )
         for scenario in scenarios
     }
@@ -202,3 +204,15 @@ def test_ota_scenarios(generated):
     malformed = records(generated, "ota-status", "03-malformed")
     assert malformed[0]["status"] == "UNKNOWN"
     assert all(not valid.is_valid(event) for event in malformed[1:])
+
+
+def test_battery_scenarios(generated):
+    valid = validator("battery-event")
+    normal = records(generated, "battery-health", "01-normal")
+    assert all(valid.is_valid(event) for event in normal)
+    thresholds = records(generated, "battery-health", "02-thresholds")
+    assert [event["soh_pct"] for event in thresholds] == [-5, 0, 59.999, 60, 79.999, 80, 100, 105]
+    malformed = records(generated, "battery-health", "03-malformed")
+    assert all(not valid.is_valid(event) for event in malformed)
+    assert "schema_version" not in malformed[-1]
+    assert "location" in malformed[-1]

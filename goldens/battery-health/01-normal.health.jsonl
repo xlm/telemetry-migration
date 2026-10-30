@@ -1,0 +1,3 @@
+{"event_id":"3a4546ce-7ec4-4552-99aa-c43f7b902131","vehicle_id":"VH-7f2fb6e0","battery_id":"BAT-00000000","soh_pct":95.5,"health":"HEALTHY","event_ts":1792972800000,"schema_version":"1"}
+{"event_id":"2795744c-134d-4389-93d8-24f130d6b413","vehicle_id":"VH-6fc3b4a3","battery_id":"BAT-00000001","soh_pct":72.25,"health":"DEGRADED","event_ts":1792972860000,"schema_version":"1"}
+{"event_id":"5b17f597-b21d-4bf4-904c-37fb076deeb9","vehicle_id":"VH-29022062","battery_id":"BAT-00000002","soh_pct":45.0,"health":"REPLACE","event_ts":1792972920000,"schema_version":"1"}

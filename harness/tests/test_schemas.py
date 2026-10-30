@@ -121,7 +121,11 @@ def test_manifests_cover_inputs_outputs_and_baselines():
     classifications = yaml.safe_load((ROOT / "manifests/classification.yaml").read_text())[
         "classifications"
     ]
-    for name, input_name in [("charging-session", "charging-event"), ("ota-status", "ota-event")]:
+    for name, input_name in [
+        ("charging-session", "charging-event"),
+        ("ota-status", "ota-event"),
+        ("battery-health", "battery-event"),
+    ]:
         baseline_path = ROOT / "manifests" / f"{name}.job.yaml"
         baseline = yaml.safe_load(baseline_path.read_text())
         assert baseline["logging"] == {"forbidden": ["location"], "hashed": ["vehicle_id"]}
@@ -145,3 +149,27 @@ def test_manifest_kind_matches_filename(name):
     for kind in ["job", "processor"]:
         manifest = yaml.safe_load((ROOT / "manifests" / f"{name}.{kind}.yaml").read_text())
         assert manifest["kind"] == kind
+
+
+def test_battery_contract_is_closed_and_bounded():
+    valid = schema_validator("contracts/battery-health.v1.schema.json")
+    record = {
+        "event_id": "00000000-0000-4000-8000-000000000001",
+        "vehicle_id": "VH-12345678",
+        "battery_id": "BAT-00000001",
+        "soh_pct": 80,
+        "health": "HEALTHY",
+        "event_ts": 10,
+        "schema_version": "1",
+    }
+    assert valid.is_valid(record)
+    for field in valid.schema["required"]:
+        assert not valid.is_valid({key: value for key, value in record.items() if key != field})
+    for changes in [
+        {"soh_pct": -1},
+        {"soh_pct": 101},
+        {"health": "healthy"},
+        {"location": None},
+        {"schema_version": "99"},
+    ]:
+        assert not valid.is_valid({**record, **changes})

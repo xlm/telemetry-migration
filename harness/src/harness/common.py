@@ -21,6 +21,12 @@ class ProcessorSpec:
 
 
 PROCESSORS = {
+    "battery-health": ProcessorSpec(
+        name="battery-health",
+        key="event_id",
+        suffix="health",
+        contract="contracts/battery-health.v1.schema.json",
+    ),
     "charging-session": ProcessorSpec(
         name="charging-session",
         key="session_id",

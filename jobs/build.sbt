@@ -32,9 +32,13 @@ lazy val chargingSession = project
   .in(file("charging-session"))
   .settings(commonSettings)
 
+lazy val batteryHealth = project
+  .in(file("battery-health"))
+  .settings(commonSettings)
+
 lazy val root = project
   .in(file("."))
-  .aggregate(otaStatus, chargingSession)
+  .aggregate(otaStatus, chargingSession, batteryHealth)
   .settings(
     publish / skip := true
   )

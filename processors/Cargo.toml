@@ -3,5 +3,6 @@ members = [
     "telemetry-core",
     "ota-status",
     "charging-session",
+    "battery-health",
 ]
 resolver = "2"
