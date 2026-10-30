@@ -14,6 +14,10 @@ status (lines 75-85, 123-167).
   floating-point numbers anywhere within a declared input field produce
   `MISSING_FIELD` with both identifiers null. Unknown extra fields are not
   inspected for nonfinite numbers (lines 17-25, 123-135, 181-184).
+- Jackson's tree parser retains the final value when JSON object keys repeat
+  (`mapper.readTree`, line 125). Duplicate keys therefore do not by themselves
+  cause rejection. OTA's local deserialiser preserves the same final-value
+  rule for typed fields, including a final null or wrong-typed value.
 - Required text fields are `event_id`, `vehicle_id`, `campaign_id`, and `status`.
   Missing, null, or wrong-typed values are absent. Empty text and whitespace
   identifiers are present, not trimmed (lines 137-148, 170-171).
@@ -88,7 +92,7 @@ Core tests cover every alias in lower/upper/mixed case, missing fields and DLQ
 precedence, present empty text, whitespace and Unicode/punctuation bypasses,
 numeric clamp boundaries and fractional precision, output version, signed
 timestamps, repeat events, and input immutability. Binary tests cover type
-validation, malformed JSON, nonfinite numbers, blank lines, per-destination
+validation, duplicate keys, malformed JSON, nonfinite numbers, blank lines, per-destination
 ordering, extra-field isolation, and private logs, alongside the retained
 fixture integration test.
 

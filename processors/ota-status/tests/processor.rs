@@ -293,3 +293,72 @@ fn keeps_duplicates_and_input_order_per_destination_while_skipping_blank_lines()
         vec!["z", "a"]
     );
 }
+
+#[test]
+fn duplicate_declared_keys_use_only_the_final_value() {
+    let valid = valid_input();
+    let mut lines = Vec::new();
+    for field in [
+        "event_id",
+        "vehicle_id",
+        "campaign_id",
+        "status",
+        "progress_pct",
+        "event_ts",
+        "schema_version",
+    ] {
+        for earlier in [
+            Value::Null,
+            serde_json::json!([]),
+            serde_json::json!("unknown"),
+        ] {
+            lines.push(format!(
+                "{{\"{field}\":{earlier},{}",
+                &valid.to_string()[1..]
+            ));
+        }
+    }
+    let (output, dlq, _) = run_jsonl(&lines.join("\n"));
+    assert!(
+        dlq.is_empty(),
+        "final valid field must overwrite earlier wrong types"
+    );
+    assert_eq!(output.len(), lines.len());
+    assert!(output.iter().all(|record| record == &output[0]));
+    assert_eq!(output[0]["status"], "DOWNLOADING");
+
+    let mut lines = Vec::new();
+    for (field, final_value, reason) in [
+        ("status", serde_json::json!("unknown"), "UNKNOWN_STATUS"),
+        ("status", Value::Null, "MISSING_FIELD"),
+        ("progress_pct", serde_json::json!("25"), "MISSING_FIELD"),
+        ("event_ts", serde_json::json!(10.0), "MISSING_FIELD"),
+        ("event_id", Value::Null, "MISSING_FIELD"),
+        ("vehicle_id", serde_json::json!(123), "MISSING_FIELD"),
+    ] {
+        let line = valid.to_string();
+        lines.push((
+            format!("{},\"{field}\":{final_value}}}", &line[..line.len() - 1]),
+            field,
+            reason,
+        ));
+    }
+    let input = lines
+        .iter()
+        .map(|(line, _, _)| line.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let (output, dlq, _) = run_jsonl(&input);
+    assert!(output.is_empty());
+    for (record, (_, field, reason)) in dlq.iter().zip(lines) {
+        assert_eq!(
+            record,
+            &serde_json::json!({
+                "event_id": if field == "event_id" { Value::Null } else { valid["event_id"].clone() },
+                "vehicle_id": if field == "vehicle_id" { Value::Null } else { valid["vehicle_id"].clone() },
+                "reason": reason
+            })
+        );
+    }
+    assert_eq!(dlq.len(), 6);
+}
