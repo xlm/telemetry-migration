@@ -328,6 +328,11 @@ mod tests {
             .is_err(),
             "overflow in an extra nested property should reject the object"
         );
+        let event: ChargingEvent =
+            serde_json::from_str(r#"{"location":{"lat":1.0,"lon":2.0,"extra":3.0}}"#)
+                .expect("valid extra nested property");
+        assert_eq!(event.location, Some(Location { lat: 1.0, lon: 2.0 }));
+
         assert!(
             serde_json::from_str::<ChargingEvent>(r#"{"soc_pct":[1e400]}"#).is_err(),
             "overflow inside a known array should reject the object"
