@@ -14,7 +14,7 @@ All references below are to `jobs/ota-status/src/main/scala/example/telemetry/ot
 
 - Status is lowercased with `Locale.ROOT`, without trimming. `downloading`, `dl`, `download` map to `DOWNLOADING`; `installing`, `inst` to `INSTALLING`; `done`, `complete`, `success`, `succeeded` to `SUCCEEDED`; `failed`, `error` to `FAILED` (lines 186-194).
 - Output copies `event_id`, `vehicle_id`, `campaign_id` and `event_ts`; emits the normalised status; clamps numeric `progress_pct` to [0, 100]; and always emits `schema_version` as the string `1` (lines 150-163). No decimal rounding is specified beyond conversion to `Double` and clamping (lines 160, 173-174).
-- Status records are sorted by `event_ts`, then `event_id`. DLQ records are sorted by `event_id` and `vehicle_id` with nulls treated as empty strings, then `reason`. Tie ordering is not specified (lines 92-109).
+- The Job sorts Golden status files by `event_ts`, then `event_id`, and Golden DLQ files by `event_id` and `vehicle_id` with nulls treated as empty strings, then `reason` (lines 92-112). The Processor's existing wrapper emits each record in input order (`processors/ota-status/src/main.rs:34-67`). The Harness compares status records by key and DLQ entries as a multiset, not by position (`harness/src/harness/diff.py:25-42,97-104`).
 
 ## State and timing
 
@@ -30,5 +30,5 @@ All references below are to `jobs/ota-status/src/main/scala/example/telemetry/ot
 ## Known limitations and ambiguities
 
 - Baseline lineage note for platform and privacy owners: the Baseline declares DLQ `reason` as derived only from `status` (`manifests/ota-status.job.yaml:25-30`), but the Job also selects `MISSING_FIELD` based on the presence and types of other required fields and on non-finite values in any named input field (lines 123-148). The fixed enum carries no input data. The protected Baseline and identical Processor Manifest were not changed.
-- Relative order among records with equal sort keys is unspecified (lines 92-109).
+- Reviewer note: a downstream consumer relying on Golden file order would instead see input order from the Processor. Relative order among Golden records with equal sort keys is unspecified (lines 92-109).
 - The Job configures framework logging but does not define all messages emitted by Spark or its dependencies (`jobs/ota-status/src/main/resources/log4j2.properties:3-9`).
